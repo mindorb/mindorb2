@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Spline Curve</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r132/three.min.js"></script>
+    <script src="OrbitControls.js"></script>
+    <script src="MeshLine.js"></script>
+  
+
+<script>
+   // Set up the scene, camera, and renderer
+   const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    
+
+    camera.position.set(0, 0, 15);
+    const renderer = new THREE.WebGLRenderer();
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+// Create the first sphere
+// Create the first sphere
+let sphere1Geometry = new THREE.SphereGeometry(1, 32, 32);
+let sphere1Material = new THREE.MeshLambertMaterial({color: 0xff0000});
+let sphere1 = new THREE.Mesh(sphere1Geometry, sphere1Material);
+sphere1.position.set(0, 0, 0);
+scene.add(sphere1);
+
+// Create the second sphere
+let sphere2Geometry = new THREE.SphereGeometry(1, 32, 32);
+let sphere2Material = new THREE.MeshLambertMaterial({color: 0xff0000});
+let sphere2 = new THREE.Mesh(sphere2Geometry, sphere2Material);
+sphere2.position.set(10, 0, 0);
+scene.add(sphere2);
+
+// Create a path that connects sphere1 and sphere2
+let path = new THREE.CatmullRomCurve3([
+    sphere1.position,
+    sphere2.position
+]);
+
+// Create a tube geometry using the path
+let tubeGeometry = new THREE.TubeGeometry(path, 20, 0.5, 8, false);
+
+// Create a material for the tube
+let tubeMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+
+// Create a mesh using the tube geometry and material
+let tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+
+// Add the tube to the scene
+scene.add(tube);
+
+// Create the sphere that revolves around the tube
+let orbitSphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+let orbitSphereMaterial = new THREE.MeshLambertMaterial({color: 0x00fff00});
+let orbitSphere = new THREE.Mesh(orbitSphereGeometry, orbitSphereMaterial);
+orbitSphere.position.set(5,2, 0);
+tube.add(orbitSphere);
+
+function updateOrbitSphere() {
+    
+  path.points = [sphere1.position, sphere2.position];
+     // Update the path's points to reflect the position of the spheres in world space
+     path.points = [sphere1.position, sphere2.position];
+
+// Update the tube geometry with the new path
+//tubeGeometry.parameters.path = path;
+//tubeGeometry.verticesNeedUpdate = true;
+
+// Update the tube's position to match the position of the path
+//tube.position.copy(path.getPointAt(0));
+
+// Update the tube's rotation based on the orbit controls polar and azimuthal angles
+tube.rotation.x = controls.getPolarAngle();
+tube.rotation.y = controls.getAzimuthalAngle();
+
+// Make the orbit sphere look at the camera
+//orbitSphere.lookAt(camera.position);
+
+  
+}
+
+let light = new THREE.DirectionalLight(0xffffff);
+light.position.set(1, 1, 1);
+scene.add(light);
+    
+const animate = () => {
+  requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+   
+  updateOrbitSphere();
+    };
+
+    animate();    
+  </script>
+  
+</body>
