@@ -15,16 +15,15 @@
 
   let texts = [];
   var curves = [];
-  var percentages = [];
 
   let visibleSpheres = [];
   let tubes = [];
   let descriptions = [];
+  let selectedSphere = null;
 
   let tubeGeometries = [];
-  let addedCharacterMeshes = [];
   let updatingTextObject = null;
-
+  let cameraPos = new THREE.Vector3();
   var font;
     var manager = new THREE.LoadingManager();
     var loader = new THREE.FontLoader(manager);
@@ -45,7 +44,7 @@
 
 
     // Set up orbit controls
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    let controls = new THREE.OrbitControls(camera, renderer.domElement);
     let resizedObject;
 
     // Create sphere
@@ -83,6 +82,7 @@
     let startingMousePosition = {x: 0, y: 0};
 
     window.addEventListener('mousedown', event => {
+      
         const mouse = new THREE.Vector2();
   mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
   mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
@@ -96,21 +96,33 @@
     const intersection = intersects[0];
     const object = intersection.object;
     if (object instanceof THREE.Mesh && object.material.color.getHex() === 0xaaaaff) {
-
+       
+    cameraPos.copy(controls.object.position);
+    controls.enabled = false;
     isResizing = true;  
-    console.log("resizedObject="+object);
     resizedObject = object;
     startingMousePosition = {x: event.clientX, y: event.clientY};
     }
 }
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('pointerup', () => {
+        if (isResizing) {
+   cameraPos = new THREE.Vector3();
     isResizing = false;
+    controls.enabled = true;
+        }
+    event.preventDefault();
     });
 
     window.addEventListener('mousemove', event => {
-  if (!isResizing) return;
+        /*if (cameraPos.x!=0&&cameraPos.y!=0&&cameraPos.z!=0) {
+            controls.enabled = false;
+        }*/
+        event.preventDefault();
+  if (!isResizing) {
+    return;
+  }
 
   const currentMousePosition = {x: event.clientX, y: event.clientY};
   const mouseMovement = {
@@ -125,7 +137,6 @@
   if (newRadius > resizedObject.parentHull.geometry.parameters.radius) return;
 
   if (newRadius < MIN_RADIUS) return;
-  console.log("NEWRADIUS:"+newRadius);
   resizedObject.scale.x = newRadius;
   resizedObject.scale.y = newRadius;
   resizedObject.scale.z = newRadius;
@@ -144,8 +155,6 @@ function updateText() {
         let tube = updatingTextObject.tube;
         let curve = updatingTextObject.curve;
 
-        //charactersMeshes = createCharacterMessages(description, curve, tube);
-       ///texts[updatingTextObject.index]=charactersMeshes;
        descriptions[updatingTextObject.index]=description;
        console.error(updatingTextObject.index);
        previousCheckIfTubeIsOnRightOrLeft[updatingTextObject.index]=null;
@@ -176,7 +185,6 @@ function addSphere(hull) {
     scene.add(sphere);
     visibleSpheres.push(sphere);
 
-    console.log("RADIUS:"+sphere.parentHull.parentSphere.geometry.radius);
        
 
     
@@ -189,15 +197,12 @@ function addSphere(hull) {
 
 function addText(description, sphere1, sphere2) {
 
-  console.log(sphere1.position);
-  console.log(sphere2.position);
 
 // Create the line curve and tube geometry
 
 
 let curve = new THREE.LineCurve3( sphere1.position, sphere2.position );
 
-console.log("CURVE");
 tubeGeometry = new THREE.TubeGeometry( curve, 20, 0.05, 8, false );
 
 // Create the tube mesh and add it to the scene
@@ -210,8 +215,6 @@ tube.sphere1Mesh.tube = tube;
 tube.sphere2Mesh = sphere2;
 tube.sphere2Mesh.tube = tube;
 
-
-//let charactersMeshes = createCharacterMessages(text, curve, tube);
 
 scene.add(tube);
 texts.push([]);
@@ -227,8 +230,6 @@ scene.add(textOrientation);
 tubes.push(tube);
 tubeGeometries.push(tubeGeometry);
 
-percentages.push(0);
-
 }
 window.addEventListener('contextmenu', function(ev) {
     ev.preventDefault();
@@ -243,20 +244,15 @@ window.addEventListener('contextmenu', function(ev) {
   const intersects = raycaster.intersectObjects(scene.children);
   visibleSpheres.forEach(sphere => sphere.renderOrder = 100);
   updatingTextObject = null;
-  console.log("LEN:"+intersects.length);
   if (intersects.length > 0) {
     let max = intersects.length;
     if (intersects.length>3) max = 3;
     for (var i = 0; i < max; i++) {
     const intersection = intersects[i];
     const object = intersection.object;
-    console.log(object);
     if (object instanceof THREE.Mesh) {
-        console.log(object.geometry.type);
         if (object.geometry.type == 'TubeGeometry') {
-            console.log("OK");
             updatingTextObject = object;
-            console.log("FOUND");
             document.getElementById('description').value = object.description;
             break;
         }
@@ -302,7 +298,6 @@ let offset = 0.20;
     renderer.render(scene, camera);
       
     for (let i = 0; i < texts.length; i++) {
-
    
     let charactersMeshes = texts[i];
     let tubeGeometry = tubeGeometries[i];
@@ -329,7 +324,6 @@ let offset = 0.20;
         let curve = curves[i];
 
         let myText = currentTubeDirection ? description : reverseString(description);
-        console.log(myText);
         charactersMeshes = createCharacterMessages(myText, curve, tube);
         tube.description = description;
         tube.curve = curve;
@@ -351,7 +345,6 @@ let offset = 0.20;
   return scaledRadius;
 }
 
-  
     charactersMeshes.forEach(function(characterMesh, index) {
        
        
@@ -377,8 +370,8 @@ let offset = 0.20;
         points.forEach(point => {
             let distance = camera.position.distanceTo(point);
             let screenPos = point.clone().project(camera);
-            let weightDistance = 0.25;
-            let weightY = 0.75;
+            let weightDistance = 0.50;
+            let weightY = 0.50;
             let screenY = screenPos.y;
             if (distance * weightDistance + screenY * (1 - weightY) < closestDistance * weightDistance + closestScreenY * (1 - weightY)) {
               
@@ -415,8 +408,14 @@ let offset = 0.20;
             let direction = new THREE.Vector3().subVectors(endPosition, startPosition).normalize();
 
 
-            let pos = startPosition2.clone().add(direction.clone().multiplyScalar(index * distance));
-
+            let width = characterMesh.geometry.boundingBox.max.x - characterMesh.geometry.boundingBox.min.x;
+            let pos;
+            if (!currentTubeDirection) {
+                pos = startPosition.clone().add(direction.clone().multiplyScalar((index * distance) + (width / 2)));
+            }
+            else {
+                pos = startPosition.clone().add(direction.clone().multiplyScalar((index * distance) - (width / 2)));
+            }
             characterMesh.position.set(pos.x, pos.y, pos.z);
 
 
@@ -434,7 +433,6 @@ for (var i = 0; i < scene.children.length; i++) {
 }
 
 if (isInScene == false) {
-    console.log("SCENE");
     scene.add(characterMesh);
 }
 
@@ -477,6 +475,7 @@ characters.forEach(function(character, index) {
         size: 0.1,
         height: 0.05
     });
+
     // Create a mesh for each character
     var textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
     var characterMesh = new THREE.Mesh(textGeometry, textMaterial);
@@ -484,10 +483,16 @@ characters.forEach(function(character, index) {
     //characterMesh.position.set(-offset + index * 0.5 + sphere1.position.x, sphere1.position.y, sphere.position.z);
 
     var curvePoint = curve.getPointAt(0 + (index / text.length));
-    var tangent = curve.getTangent(index / text.length);
+var tangent = curve.getTangent(index / text.length);
+    
+var boundingBox = new THREE.Box3().setFromObject(characterMesh);
+let size = boundingBox.getSize();
 
-characterMesh.position.copy(curvePoint);
-characterMesh.position.add(tangent.multiplyScalar(0.2));
+characterMesh.position.x = curvePoint.x - size.x / 2;
+characterMesh.position.y = curvePoint.y - size.y / 2;
+characterMesh.position.z = curvePoint.z - size.z / 2;
+
+
 
 // Add the tube as a child of the parent object
 
@@ -519,6 +524,39 @@ function checkIfTubeIsOnRightOrLeft(tubeEndPosition) {
     } 
 }
     animate();    
+
+    function KeyPress(e) {
+      var evtobj = window.event? event : e
+      if (evtobj.keyCode == 90 && evtobj.ctrlKey) {
+        let i = texts.length-1;
+        let myCharactersMeshes = texts[i];
+        let tubeGeometry = tubeGeometries[i];
+        let tube  = tubes[i];
+        let description = descriptions[i];
+        if (tube) {
+        let sphere1Mesh = tube.sphere1Mesh;
+        let sphere2Mesh = tube.sphere2Mesh;
+        scene.remove(sphere2Mesh);
+        scene.remove(tube);
+        }
+      
+    i++;
+        curves = curves.splice(i, 1);
+        texts = texts.splice(i, 1);
+        tubeGeometries = tubeGeometries.splice(i, 1);
+        tubes = tubes.splice(i, 1);
+        descriptions = descriptions.splice(i, 1);
+        previousCheckIfTubeIsOnRightOrLeft = previousCheckIfTubeIsOnRightOrLeft.splice(i, 1);
+        if (myCharactersMeshes) {
+        myCharactersMeshes.forEach(function(characterMesh, index) {
+            scene.remove(characterMesh);
+        });
+    }
+        
+      }
+}
+
+document.onkeydown = KeyPress;
 
 </script>
 
