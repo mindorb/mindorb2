@@ -203,7 +203,7 @@ function addText(description, sphere1, sphere2) {
 
 let curve = new THREE.LineCurve3( sphere1.position, sphere2.position );
 
-tubeGeometry = new THREE.TubeGeometry( curve, 20, 0.05, 8, false );
+tubeGeometry = new THREE.TubeGeometry( curve, 20, 0.10, 8, false );
 
 // Create the tube mesh and add it to the scene
 //var tubeMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
@@ -290,7 +290,7 @@ window.addEventListener('dblclick', () => {
 
 // rotation speed and starting percentage
 var percentage = 0;
-let radius = 0.10;
+let radius = 0.40;
 let offset = 0.20;
     
     const animate = () => {
@@ -337,14 +337,7 @@ let offset = 0.20;
 
     previousCheckIfTubeIsOnRightOrLeft[i]=currentTubeDirection;
 
-           
-    function getScaledRadius(mesh) {
-  let scale = mesh.scale;
-  let unscaledRadius = mesh.geometry.boundingSphere.radius;
-  let scaledRadius = Math.max(scale.x, scale.y, scale.z) * unscaledRadius;
-  return scaledRadius;
-}
-
+ 
     charactersMeshes.forEach(function(characterMesh, index) {
        
        
@@ -383,25 +376,23 @@ let offset = 0.20;
     
             let position = closestPoint;
 
-            let tubeRadius = 0.2;
+            
             let reference = closestPoint;
-            let tubeStart = startPosition;
-            let direction2 = new THREE.Vector3().subVectors(reference, tubeStart).normalize();
-            let angle = Math.acos(direction2.dot(new THREE.Vector3(1, 0, 0)));
+
+            let nextPoint = getNextPoint(reference, startPosition, endPosition);
+
+            let referenceToClosest = new THREE.Vector3().subVectors(reference, nextPoint);
+            let distance3 = referenceToClosest.length();
+            let direction3 = referenceToClosest.normalize();
+            let startPosition2 = new THREE.Vector3().addVectors(startPosition, direction3.multiplyScalar(distance3));
+
             
-            let startPosition2 = new THREE.Vector3(tubeStart.x + tubeRadius * Math.cos(angle), tubeStart.y + tubeRadius * Math.sin(angle), tubeStart.z);
-
-            let tubeRadius2 = 0.2;
-            let reference2 = closestPoint;
-            let tubeStart2 = endPosition;
-            let direction3 = new THREE.Vector3().subVectors(reference2, tubeStart2).normalize();
-            let angle2 = Math.acos(direction3.dot(new THREE.Vector3(1, 0, 0)));
-            
-        let endPosition2 = new THREE.Vector3(tubeStart2.x + tubeRadius2 * Math.cos(angle2), tubeStart2.y + tubeRadius2 * Math.sin(angle2), tubeStart2.z);
-
-
-           
-            let distance = startPosition.distanceTo(endPosition) / (charactersMeshes.length - 1);
+            let referenceToClosest2 = new THREE.Vector3().subVectors(reference, nextPoint);
+            let distance4 = referenceToClosest2.length();
+            let direction4 = referenceToClosest2.normalize();
+            let endPosition2 = new THREE.Vector3().addVectors(endPosition, direction4.multiplyScalar(distance4));
+         
+            let distance = startPosition2.distanceTo(endPosition2) / (charactersMeshes.length - 1);
           
           
 
@@ -411,10 +402,10 @@ let offset = 0.20;
             let width = characterMesh.geometry.boundingBox.max.x - characterMesh.geometry.boundingBox.min.x;
             let pos;
             if (!currentTubeDirection) {
-                pos = startPosition.clone().add(direction.clone().multiplyScalar((index * distance) + (width / 2)));
+                pos = startPosition2.clone().add(direction.clone().multiplyScalar((index * distance) + (width / 2)));
             }
             else {
-                pos = startPosition.clone().add(direction.clone().multiplyScalar((index * distance) - (width / 2)));
+                pos =startPosition2.clone().add(direction.clone().multiplyScalar((index * distance) - (width / 2)));
             }
             characterMesh.position.set(pos.x, pos.y, pos.z);
 
@@ -445,6 +436,25 @@ let line =  new THREE.Line3(startPosition, endPosition);
 
 
     };
+
+function getNextPoint(reference, startPosition, endPositon) {
+    let tubeDirection = new THREE.Vector3().subVectors(endPosition, startPosition).normalize();
+            let nextDirection = new THREE.Vector3().subVectors(reference, startPosition);
+            let dotProduct = nextDirection.dot(tubeDirection);
+            let closestPoint = new THREE.Vector3().addVectors(startPosition, tubeDirection.multiplyScalar(dotProduct));
+            
+            
+            return closestPoint;
+}
+
+          
+function getScaledRadius(mesh) {
+  let scale = mesh.scale;
+  let unscaledRadius = mesh.geometry.boundingSphere.radius;
+  let scaledRadius = Math.max(scale.x, scale.y, scale.z) * unscaledRadius;
+  return scaledRadius;
+}
+
 
 function reverseString(str) {
     // Step 1. Use the split() method to return a new array
