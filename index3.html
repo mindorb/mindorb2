@@ -42,6 +42,7 @@
       var font;
       var manager = new THREE.LoadingManager();
       var loader = new THREE.FontLoader(manager);
+
       loader.load("font.json", function (response) {
         font = response;
       });
@@ -366,7 +367,7 @@
       const animate = () => {
         requestAnimationFrame(animate);
         renderer.render(scene, camera);
-
+        var secondAlignerObject = null;
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
           let tubeGeometry = tubeGeometries[i];
@@ -404,7 +405,7 @@
             previousCheckIfTubeIsOnRightOrLeft[i] != currentTubeDirection
           ) {
             for (let z = 0; z < charactersMeshes.length; z++) {
-              scene.remove(charactersMeshes[i]);
+              scene.remove(charactersMeshes[z]);
             }
 
             let myText = currentTubeDirection
@@ -424,32 +425,70 @@
             var center = curve.getPointAt(0.75);
             let start = curve.getPointAt(0);
             let end = curve.getPointAt(1);
-            let center2 = curve.getPointAt(0.5);
-            let startToEnd = new THREE.Vector3().subVectors(end, start);
-            let centerToStart = new THREE.Vector3().subVectors(start, center2);
-            let direction2 = startToEnd.normalize();
+
+            let tangent = curve.getTangentAt(0.75);
             let normal = new THREE.Vector3()
-              .crossVectors(startToEnd, centerToStart)
+              .crossVectors(tangent, new THREE.Vector3(0, 1, 0))
               .normalize();
-            let length = startToEnd.length();
-            let up = new THREE.Vector3(0, 1, 0);
+
+            let alignerObject = new THREE.Object3D();
+            alignerObject.position.copy(end);
+
+            let quaternion = new THREE.Quaternion();
+            quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+            alignerObject.quaternion.copy(quaternion);
+
+            if (secondAlignerObject) scene.remove(secondAlignerObject);
+            secondAlignerObject = new THREE.Object3D();
+            secondAlignerObject.position.copy(end);
+            let secondPlaneGeometry = new THREE.PlaneGeometry(5, 5);
+            let secondPlaneMaterial = new THREE.MeshBasicMaterial({
+              color: 0xffff00,
+              side: THREE.DoubleSide,
+            });
+
+            let secondPlane = new THREE.Mesh(
+              secondPlaneGeometry,
+              secondPlaneMaterial
+            );
+            let rotationMatrix = new THREE.Matrix4();
+            rotationMatrix.makeRotationFromQuaternion(
+              new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 1, 0),
+                tangent
+              )
+            );
+            secondPlane.applyMatrix4(rotationMatrix);
+
+            /** NEW **/
+            let normal2 = secondPlaneGeometry.faces[0].normal;
+            let cameraDirection = new THREE.Vector3()
+              .subVectors(camera.position, secondPlane.position)
+              .normalize();
+            let planeNormal = new THREE.Vector3()
+              .crossVectors(tangent, cameraDirection)
+              .normalize();
+
+            normal2.copy(planeNormal);
+            /** END NEW **/
+
+            secondAlignerObject.add(secondPlane);
+            //scene.add(secondAlignerObject);
+
+            var plane2 = new THREE.Plane().setFromNormalAndCoplanarPoint(
+              normal2,
+              secondPlane.position
+            );
+
             for (let i = 0; i <= 1; i += 1 / 75) {
               let point = new THREE.Vector3();
               let angle = i * Math.PI * 2;
               point.x = center.x + radius * Math.cos(angle);
               point.y = center.y + radius * Math.sin(angle);
               point.z = center.z;
-              let vectorToPoint = new THREE.Vector3().subVectors(
-                point,
-                camera.position
-              );
 
-              let cameraNormal = camera.getWorldDirection(new THREE.Vector3());
-              cameraNormal.normalize();
-              if (cameraNormal.dot(vectorToPoint) > 0) {
+              if (plane2.distanceToPoint(point) > 0) {
                 points.push(point);
-              } else {
-                console.log("Removed");
               }
             }
 
@@ -589,7 +628,6 @@
       }
 
       function createCharacterMessages(text, curve, tube) {
-        console.log("createCharacerMeshes");
         var characters = text.split("");
 
         let charactersMeshes = [];
@@ -610,7 +648,7 @@
           var tangent = curve.getTangent(index / text.length);
 
           var boundingBox = new THREE.Box3().setFromObject(characterMesh);
-          let size = boundingBox.getSize(new THREE.Vector3());
+          let size = boundingBox.getSize();
 
           characterMesh.position.x = curvePoint.x - size.x / 2;
           characterMesh.position.y = curvePoint.y - size.y / 2;
