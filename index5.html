@@ -364,10 +364,12 @@
       let radius = 0.4;
       let offset = 0.2;
 
+      //animate()
       const animate = () => {
         requestAnimationFrame(animate);
         renderer.render(scene, camera);
         var secondAlignerObject = null;
+        var counter = 0;
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
           let tubeGeometry = tubeGeometries[i];
@@ -421,7 +423,7 @@
 
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
           charactersMeshes.forEach((characterMesh, index) => {
-            let points = [];
+            var points = [];
             var center = curve.getPointAt(0.75);
             let start = curve.getPointAt(0);
             let end = curve.getPointAt(1);
@@ -487,14 +489,20 @@
               point.y = center.y + radius * Math.sin(angle);
               point.z = center.z;
 
-              points = checkPointVisibility(
+              let data = checkPointVisibility(
+                currentTubeDirection,
                 point,
                 end,
+                start,
                 camera,
-                0.52,
                 tube,
-                points
+                points,
+                counter
               );
+
+              points = data.points;
+
+              counter = data.counter;
             }
 
             if (points.length == 0) {
@@ -599,6 +607,7 @@
             let line = new THREE.Line3(startPosition, endPosition);
           });
         }
+        console.log(counter);
       };
 
       function getNextPoint(reference, startPosition, endPositon) {
@@ -633,12 +642,14 @@
       }
 
       function checkPointVisibility(
+        currentTubeDirection,
         point,
         tubeEnd,
+        tubeStart,
         camera,
-        threshold,
         tube,
-        points
+        points,
+        counter
       ) {
         let cameraToPoint = new THREE.Vector3()
           .subVectors(point, camera.position)
@@ -649,11 +660,11 @@
         let dot = cameraToPoint.dot(cameraToTubeEnd);
         let angle = Math.acos(dot);
         let probability = 1 / (1 + Math.exp(-angle));
-
-        if (probability < threshold) {
+        if (probability < 0.53) {
           let raycaster1 = new THREE.Raycaster();
           let raycaster2 = new THREE.Raycaster();
           let raycaster3 = new THREE.Raycaster();
+          let raycaster4 = new THREE.Raycaster();
 
           let cameraToPoint = new THREE.Vector3()
             .subVectors(point, camera.position)
@@ -664,29 +675,50 @@
           let pointToTubeEnd = new THREE.Vector3()
             .subVectors(tubeEnd, point)
             .normalize();
+          let pointToTubeStart = new THREE.Vector3()
+            .subVectors(tubeStart, point)
+            .normalize();
 
           raycaster1.set(point, cameraToPoint);
           raycaster2.set(point, cameraToTubeEnd);
           raycaster3.set(point, pointToTubeEnd);
+          raycaster4.set(point, pointToTubeStart);
 
           let intersects1 = raycaster1.intersectObject(tube);
           let intersects2 = raycaster2.intersectObject(tube);
           let intersects3 = raycaster3.intersectObject(tube);
+          let intersects4 = raycaster3.intersectObject(tube);
           if (
             intersects1.length == 0 &&
             intersects2.length == 0 &&
-            intersects3.length > 0
+            intersects3.length > 0 &&
+            intersects4.length > 0
           ) {
             let intersectionPoint = intersects3[0].point;
             let distance = point.distanceTo(intersectionPoint);
-            if (distance > 0.35) {
-              points.push(point);
+            let intersectionPoint2 = intersects4[0].point;
+            let distance2 = point.distanceTo(intersectionPoint2);
+            //console.log("D:" + distance);
+
+            if (currentTubeDirection) {
+              if (distance2 < 0.47) {
+                points.push(point);
+              } else if (distance < 0.47) {
+                points.push(point);
+              }
+            } else {
+              if (distance2 > 0.47) {
+                points.push(point);
+              } else if (distance > 0.47) {
+                points.push(point);
+              }
             }
           }
         } else {
+          counter++;
           points.push(point);
         }
-        return points;
+        return { points, counter };
       }
 
       function createCharacterMessages(text, curve, tube) {
@@ -710,7 +742,7 @@
           var tangent = curve.getTangent(index / text.length);
 
           var boundingBox = new THREE.Box3().setFromObject(characterMesh);
-          let size = boundingBox.getSize();
+          let size = boundingBox.getSize(new THREE.Vector3());
 
           characterMesh.position.x = curvePoint.x - size.x / 2;
           characterMesh.position.y = curvePoint.y - size.y / 2;
