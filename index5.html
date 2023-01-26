@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+    <script src="three.min.js"></script>
     <script src="OrbitControls.js"></script>
   </head>
   <body>
@@ -106,7 +106,9 @@
       scene.add(sphere);
 
       let isResizing = false;
+      let recursiveResizing = false;
       let startingMousePosition = { x: 0, y: 0 };
+      let originalRadius;
 
       window.addEventListener("mousedown", (event) => {
         const mouse = new THREE.Vector2();
@@ -130,48 +132,74 @@
             isResizing = true;
             resizedObject = object;
             startingMousePosition = { x: event.clientX, y: event.clientY };
+          } else if (
+            object instanceof THREE.Mesh &&
+            object.material.color.getHex() === 0xffffff
+          ) {
+            controls.enabled = false;
+           
+            resizedObject = object;
+            if (!object.parentSphere.parentHull) {
+            originalRadius = object.geometry.parameters.radius / 2;
+            } else {
+              originalRadius = object.geometry.parameters.radius;
+            }
+            console.log("Settingg originalRadius to "+originalRadius);
+            startingMousePosition = { x: event.clientX, y: event.clientY };
+            recursiveResizing = true;
           }
         }
       });
 
       window.addEventListener("pointerup", () => {
         if (isResizing) {
-          cameraPos = new THREE.Vector3();
           isResizing = false;
+          controls.enabled = true;
+        } else if (recursiveResizing) {
+          recursiveResizing = false;
           controls.enabled = true;
         }
         event.preventDefault();
       });
 
       window.addEventListener("mousemove", (event) => {
-        /*if (cameraPos.x!=0&&cameraPos.y!=0&&cameraPos.z!=0) {
-                  controls.enabled = false;
-              }*/
         event.preventDefault();
-        if (!isResizing) {
+        if ( (!isResizing) && (!recursiveResizing) ) {
           return;
         }
 
         const currentMousePosition = { x: event.clientX, y: event.clientY };
-        const mouseMovement = {
-          x: currentMousePosition.x - startingMousePosition.x,
-          y: currentMousePosition.y - startingMousePosition.y,
-        };
+    const mouseMovement = {
+      x: currentMousePosition.x - startingMousePosition.x,
+      y: currentMousePosition.y - startingMousePosition.y,
+    };
+
+    // calculate new radius based on the original radius
+    const newRadius = originalRadius + mouseMovement.y * 0.01 + mouseMovement.x * 0.01;
+    console.log("NEWRADIUS:"+newRadius);
 
         let isHullVisible = false;
 
-        // Update sphere radius based on mouse movement
-        const newRadius =
+        /*const newRadius =
           resizedObject.geometry.parameters.radius +
           mouseMovement.y * 0.01 +
-          mouseMovement.x * 0.01;
-        if (newRadius > resizedObject.parentHull.geometry.parameters.radius)
+          mouseMovement.x * 0.01;*/
+
+        if (isResizing) {
+          if (!resizedObject.parentHull) return;
+        if ( (newRadius > resizedObject.parentHull.geometry.parameters.radius) )
           return;
+        }
 
         if (newRadius < MIN_RADIUS) return;
+        changeSpheres(resizedObject, newRadius * 2);
         resizedObject.scale.x = newRadius;
         resizedObject.scale.y = newRadius;
         resizedObject.scale.z = newRadius;
+        
+        if (isResizing) {
+
+        
 
         scene.remove(resizedObject.tube);
 
@@ -195,7 +223,96 @@
         resizedObject.tubeGeometry = tubeGeometry;
 
         scene.add(tubeMesh);
+      } else if (recursiveResizing) {
+        console.log("REC");
+       
+
+        let hull = resizedObject.parentSphere.parentHull;
+        while (hull) {
+          if (getScaledRadius(hull)<getScaledRadius(resizedObject)) {
+            if (!hull.parentSphere.parentHull) {
+              hull.scale.x = resizedObject.scale.x / 2;
+              hull.scale.y = resizedObject.scale.y / 2;
+              hull.scale.z = resizedObject.scale.z / 2;
+            } else {
+              hull.scale.x = resizedObject.scale.x;
+              hull.scale.y = resizedObject.scale.y;
+              hull.scale.z = resizedObject.scale.z;
+            }
+          }
+          
+         
+          if ( (hull.parentSphere) && (hull.parentSphere.parentHull) ) {
+            hull = hull.parentSphere.parentHull;
+            
+          } else {
+            hull = null;
+          }
+        }
+      }
       });
+
+      function changeSpheres(hull, newRadius) {
+        console.log("SPHERES");
+        console.log(hull.spheres);
+        for (var i = 0; i < hull.spheres.length; i++) {
+          // Create a Vector3 for the original position of the small sphere
+        let originalPos = hull.spheres[i].position;
+        console.log("SPHERE:");
+        console.log(hull.spheres[i]);
+        console.log("originalPos:");
+        console.log(originalPos);
+
+        // Normalize the original position vector
+          console.log("newRadius:"+newRadius);
+          console.log("oldRadius:"+getScaledRadius(hull));
+        // Scale the direction vector by the ratio of the new sphere's radius to the old sphere's radius
+        let ratio = newRadius / getScaledRadius(hull); //  / newRadius;
+        console.log("RATIO:");
+        console.log(ratio);
+        originalPos.multiplyScalar(ratio);
+
+        let newPosition = new THREE.Vector3().addVectors(originalPos, new THREE.Vector3(0,0,0));
+        console.log("NEW POSITION:");
+        console.log(newPosition);
+
+        // Add the scaled direction vector to the origin to get the new position of the small sphere
+        hull.spheres[i].position.x = newPosition.x;
+        hull.spheres[i].position.y = newPosition.y;
+        hull.spheres[i].position.z = newPosition.z;
+
+        scene.remove(hull.spheres[i].tube);
+
+        tubeGeometry = new THREE.TubeGeometry(
+          hull.spheres[i].curve,
+          20,
+          getScaledRadius(hull.spheres[i])/2,
+          8,
+          false
+        );
+
+        var tubeMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: false,
+          opacity: 0.5,
+        });
+
+        var tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
+
+        hull.spheres[i].tube = tubeMesh;
+        hull.spheres[i].tubeGeometry = tubeGeometry;
+
+        scene.add(tubeMesh);
+
+        console.log("NEW POSITION2:");
+        console.log("X:");
+        console.log(hull.spheres[i].position.x);
+        console.log("Y:");
+        console.log(hull.spheres[i].position.y);
+        console.log("Z:");
+        console.log(hull.spheres[i].position.z);
+        }
+      }
 
       function updateText() {
         let description = document.getElementById("description").value;
@@ -219,6 +336,7 @@
       }
 
       function addSphere(hull) {
+        
         // Calculate the position of the mouse click on the hull
         const mouse = new THREE.Vector2();
         mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
@@ -241,6 +359,13 @@
 
           sphere.position.copy(intersection.point);
           sphere.parentHull = hull;
+          if (!hull.spheres) {
+            hull.spheres = [sphere];
+            console.log("CREATED ");
+            console.log(sphere);
+          } else {
+            hull.spheres.push(sphere);
+          }
           scene.add(sphere);
 
           let myDirection = new THREE.Vector3()
@@ -433,13 +558,7 @@
               .crossVectors(tangent, new THREE.Vector3(0, 1, 0))
               .normalize();
 
-            let alignerObject = new THREE.Object3D();
-            alignerObject.position.copy(end);
-
-            let quaternion = new THREE.Quaternion();
-            quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-            alignerObject.quaternion.copy(quaternion);
-
+       
             if (secondAlignerObject) scene.remove(secondAlignerObject);
             secondAlignerObject = new THREE.Object3D();
             secondAlignerObject.position.copy(end);
@@ -506,7 +625,6 @@
             }
 
             if (points.length == 0) {
-              console.log(0);
               return;
             }
 
@@ -607,7 +725,6 @@
             let line = new THREE.Line3(startPosition, endPosition);
           });
         }
-        console.log(counter);
       };
 
       function getNextPoint(reference, startPosition, endPositon) {
