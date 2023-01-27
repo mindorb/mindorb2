@@ -78,7 +78,7 @@
         opacity: 0.5,
       });
       const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-      //sphere.position.set(1, 2, 3);
+      sphere.position.set(1, 2, 3);
 
       const addHullToSphere = (sphere) => {
         let hullRadius;
@@ -192,7 +192,7 @@
   
         changeSpheres(resizedObject, newRadius * 2, 2);
         } else {
-          changeSpheres(resizedObject, newRadius / 4, 0.5);
+          changeSpheres(resizedObject, newRadius * 4 , 0.5);
         }
         resizedObject.scale.x = newRadius;
         resizedObject.scale.y = newRadius;
@@ -253,29 +253,9 @@
       function changeSpheres(hull, newRadius) {
         if (!hull.spheres) return;
         for (let i = 0; i < hull.spheres.length; i++) {
-        let originalPos = new THREE.Vector3().addVectors(hull.spheres[i].position, hull.position);
-        
-        let ox = hull.spheres[i].position.x;
-        let oy = hull.spheres[i].position.y;
-        let oz = hull.spheres[i].position.z;
-      
-        
-        // Scale the direction vector by the ratio of the new sphere's radius to the old sphere's radius
-        let ratio = newRadius / getScaledRadius(hull); //  / newRadius;
-        originalPos.multiplyScalar(ratio);
-
-        let newPosition = new THREE.Vector3().addVectors(originalPos, new THREE.Vector3(0,0,0));
-        
-        let dx = newPosition.x - ox;
-        let dy = newPosition.y - oy;
-        let dz = newPosition.z - oz;
-
-        // Add the scaled direction vector to the origin to get the new position of the small sphere
-        hull.spheres[i].position.x = newPosition.x + hull.position.x;
-        hull.spheres[i].position.y = newPosition.y + hull.position.y;
-        hull.spheres[i].position.z = newPosition.z + hull.position.z;
-
-        scene.remove(hull.spheres[i].tube);
+            let sphere = hull.spheres[i];
+            
+       /* scene.remove(hull.spheres[i].tube);
 
         let start = new THREE.Vector3(hull.spheres[i].tube_curve.v1.x+hull.position.x,hull.spheres[i].tube_curve.v1.y+hull.position.y,hull.spheres[i].tube_curve.v1.z+hull.position.z)
         let end = new THREE.Vector3(hull.spheres[i].tube_curve.v2.x+hull.position.x,hull.spheres[i].tube_curve.v2.y+hull.position.y,hull.spheres[i].tube_curve.v2.z+hull.position.z)
@@ -308,7 +288,7 @@
          
           changePos(new THREE.Vector3(dx, dy, dz), hullSphere)
        
-        }
+        }*/
 
         }
       }
@@ -779,6 +759,15 @@
         let scaledRadius = Math.max(scale.x, scale.y, scale.z) * unscaledRadius;
         return scaledRadius;
       }
+
+      function getScaledRadius2(mesh) {
+  let scale = mesh.scale;
+  let unscaledRadius = mesh.geometry.boundingSphere.radius;
+  let spherePos = mesh.position;
+  let distanceFromOrigin = spherePos.distanceTo(new THREE.Vector3(0,0,0));
+  let scaledRadius = Math.max(scale.x, scale.y, scale.z) * (unscaledRadius + distanceFromOrigin);
+  return scaledRadius;
+}
 
       function reverseString(str) {
         var splitString = str.split("");

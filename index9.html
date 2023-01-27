@@ -78,14 +78,13 @@
         opacity: 0.5,
       });
       const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-      //sphere.position.set(1, 2, 3);
 
       const addHullToSphere = (sphere) => {
         let hullRadius;
         if (sphere.parentHull == null) {
-          hullRadius = sphere.scale.x * 2; // Hull radius is twice the size of the sphere radius
+          hullRadius = getScaledRadius(sphere) * 2; // Hull radius is twice the size of the sphere radius
         } else {
-          hullRadius = sphere.scale.x * 1;
+          hullRadius = getScaledRadius(sphere) * 4;
         }
         const hullGeometry = new THREE.SphereGeometry(hullRadius, 32, 32);
         const hullMaterial = new THREE.MeshBasicMaterial({
@@ -124,6 +123,7 @@
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const object = intersection.object;
+          if (object.visible == false) return;
           if (
             object instanceof THREE.Mesh &&
             object.material.color.getHex() === 0xaaaaff
@@ -183,16 +183,50 @@
           if (!resizedObject.parentHull) return;
         if ( (newRadius > resizedObject.parentHull.geometry.parameters.radius) )
           return;
-        }
+        } else if (recursiveResizing) {
+            
+            if (newRadius < originalRadius) {
 
-        if (newRadius < MIN_RADIUS) return;
+            if (resizedObject.spheres) {
+                let maxParentSphereRadius = 0;
+                for (let x = 0; x < resizedObject.spheres.length; x++) {
+                    console.log("SPHERES[x].parentHull");
+                    console.log(resizedObject.spheres[x].belongingHull);
+                    if (resizedObject.spheres[x].belongingHull) {
+                    if (getScaledRadius(resizedObject.spheres[x].belongingHull)>maxParentSphereRadius) {
+                        maxParentSphereRadius = getScaledRadius(resizedObject.spheres[x].belongingHull);
+                    }
+                }
+                }
+
+                    console.log(getScaledRadius(resizedObject)+"<"+maxParentSphereRadius);
+                    if  ( (resizedObject.position.x==0) && (resizedObject.position.y == 0) && (resizedObject.position.z==0) ) {
+                        if (getScaledRadius(resizedObject) < maxParentSphereRadius*4) return;
+                    } else {
+                        if (getScaledRadius(resizedObject) < maxParentSphereRadius) return;
+                    }
+                } else {
+                return; // Return when there is no sphere connected
+                }
+
+            } else {
+                if (getScaledRadius(resizedObject.parentSphere.belongingHull)>2*getScaledRadius(resizedObject)) {
+                    alert(0);
+                    return;
+                }
+            }
+    }
+
+       
+
+
         console.log("resizedObject");
         console.log(resizedObject);
         if  ( (resizedObject.position.x==0) && (resizedObject.position.y == 0) && (resizedObject.position.z==0) ) {
   
-        changeSpheres(resizedObject, newRadius * 2, 2);
+        changeSpheres(resizedObject, newRadius * 2);
         } else {
-          changeSpheres(resizedObject, newRadius / 4, 0.5);
+          changeSpheres(resizedObject, newRadius);
         }
         resizedObject.scale.x = newRadius;
         resizedObject.scale.y = newRadius;
@@ -200,15 +234,15 @@
         
         if (isResizing) {
 
-        scene.remove(resizedObject.tube);
-
+        
         tubeGeometry = new THREE.TubeGeometry(
           resizedObject.curve,
           20,
-          newRadius / 8,
+          0.1,
           8,
           false
         );
+        scene.remove(resizedObject.tube);
 
         var tubeMaterial = new THREE.MeshBasicMaterial({
           color: 0xff0000,
@@ -223,23 +257,24 @@
 
         scene.add(tubeMesh);
       } else if (recursiveResizing) {
-       console.log("RECURSIVERESIZINGG");
 
         let hull = resizedObject.parentSphere.parentHull;
+        
+       
         while (hull) {
-          if (getScaledRadius(hull)<getScaledRadius(resizedObject)) {
+          if (getScaledRadius(hull)<getScaledRadius(resizedObject)*2) {
             if (!hull.parentSphere.parentHull) {
-              hull.scale.x = resizedObject.scale.x / 2;
-              hull.scale.y = resizedObject.scale.y / 2;
-              hull.scale.z = resizedObject.scale.z / 2;
+              hull.scale.x = resizedObject.scale.x; /// 2;
+              hull.scale.y = resizedObject.scale.y; /// 2;
+              hull.scale.z = resizedObject.scale.z; // / 2;
             } else {
-              hull.scale.x = resizedObject.scale.x;
-              hull.scale.y = resizedObject.scale.y;
-              hull.scale.z = resizedObject.scale.z;
+              hull.scale.x = resizedObject.scale.x * 2;
+              hull.scale.y = resizedObject.scale.y *2 ;
+              hull.scale.z = resizedObject.scale.z *2;
             }
           }
+          changeSpheres(hull, getScaledRadius(hull));
           
-         
           if ( (hull.parentSphere) && (hull.parentSphere.parentHull) ) {
             hull = hull.parentSphere.parentHull;
             
@@ -250,41 +285,36 @@
       }
       });
 
-      function changeSpheres(hull, newRadius) {
-        if (!hull.spheres) return;
-        for (let i = 0; i < hull.spheres.length; i++) {
-        let originalPos = new THREE.Vector3().addVectors(hull.spheres[i].position, hull.position);
-        
-        let ox = hull.spheres[i].position.x;
-        let oy = hull.spheres[i].position.y;
-        let oz = hull.spheres[i].position.z;
-      
-        
-        // Scale the direction vector by the ratio of the new sphere's radius to the old sphere's radius
-        let ratio = newRadius / getScaledRadius(hull); //  / newRadius;
-        originalPos.multiplyScalar(ratio);
+      function changeSpheres(bigSphere, newRadius) {
+        if (!bigSphere.spheres) return;
+        for (let i = 0; i < bigSphere.spheres.length; i++) {
+            let smallSphere = bigSphere.spheres[i].clone();
+            
+            // Calculate the angles between the center of the big sphere and the small sphere
+            var dx = smallSphere.position.x - bigSphere.position.x;
+            var dy = smallSphere.position.y - bigSphere.position.y;
+            var dz = smallSphere.position.z - bigSphere.position.z;
+            var distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            var phi = Math.atan2(dy, dx);
+            var theta = Math.acos(dz / distance);
 
-        let newPosition = new THREE.Vector3().addVectors(originalPos, new THREE.Vector3(0,0,0));
-        
-        let dx = newPosition.x - ox;
-        let dy = newPosition.y - oy;
-        let dz = newPosition.z - oz;
+            // Set the new position of the small sphere according to the new radius
+            bigSphere.spheres[i].position.set(
+                bigSphere.position.x + newRadius * Math.sin(theta) * Math.cos(phi),
+                bigSphere.position.y + newRadius * Math.sin(theta) * Math.sin(phi),
+                bigSphere.position.z + newRadius * Math.cos(theta)
+            );
 
-        // Add the scaled direction vector to the origin to get the new position of the small sphere
-        hull.spheres[i].position.x = newPosition.x + hull.position.x;
-        hull.spheres[i].position.y = newPosition.y + hull.position.y;
-        hull.spheres[i].position.z = newPosition.z + hull.position.z;
+        scene.remove(bigSphere.spheres[i].tube);
 
-        scene.remove(hull.spheres[i].tube);
-
-        let start = new THREE.Vector3(hull.spheres[i].tube_curve.v1.x+hull.position.x,hull.spheres[i].tube_curve.v1.y+hull.position.y,hull.spheres[i].tube_curve.v1.z+hull.position.z)
-        let end = new THREE.Vector3(hull.spheres[i].tube_curve.v2.x+hull.position.x,hull.spheres[i].tube_curve.v2.y+hull.position.y,hull.spheres[i].tube_curve.v2.z+hull.position.z)
+        let start = bigSphere.position;
+        let end = bigSphere.spheres[i].position;
         let curve = new THREE.LineCurve3(start, end);
 
         tubeGeometry = new THREE.TubeGeometry(
           curve,
           50,
-          getScaledRadius(hull.spheres[i]),
+         0.1,
           8,
           false
         );
@@ -296,22 +326,29 @@
         });
 
         var tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
-        tubeMesh.position.add(hull.position);
-        hull.spheres[i].tube = tubeMesh;
-        hull.spheres[i].tubeGeometry = tubeGeometry;
+        //tubeMesh.position.add(bigSphere.position);
+        bigSphere.spheres[i].tube = tubeMesh;
+        bigSphere.spheres[i].tubeGeometry = tubeGeometry;
         scene.add(tubeMesh);
 
-        if (!hull.spheres[i].belongingHull) {
+        if (!bigSphere.spheres[i].belongingHull) {
           console.log("NO BELONGGING HULLSPHERE"); 
         } else {
-          let hullSphere = hull.spheres[i].belongingHull;
-         
-          changePos(new THREE.Vector3(dx, dy, dz), hullSphere)
+          let hullSphere = bigSphere.spheres[i].belongingHull;
+        
+        changePos(distanceBetweenPositions(smallSphere.position, bigSphere.spheres[i].position), hullSphere)
        
         }
 
         }
       }
+
+      function distanceBetweenPositions(oldPosition, newPosition) {
+  var xDiff = newPosition.x - oldPosition.x;
+  var yDiff = newPosition.y - oldPosition.y;
+  var zDiff = newPosition.z - oldPosition.z;
+  return new THREE.Vector3(xDiff, yDiff, zDiff);
+}
 
       function getRandomColor() {
         let colors = [0xff0000, 0x00ff00, 0xaaaaaa, 0x0000ff];
@@ -324,8 +361,6 @@
         /*for (var z = 0; z < hullSphere.length; i++) {
           let childHull = resizedObject.spheres[i];
         }*/
-      console.log("HULLSPHERE");
-      console.log(hullSphere);
       if (hullSphere) {
         hullSphere.position.add(vector);
 
@@ -490,6 +525,7 @@
 
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
+        console.log("INTERSECTS:"+intersects.length);
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const object = intersection.object;
@@ -601,16 +637,7 @@
               secondPlaneGeometry,
               secondPlaneMaterial
             );
-            let rotationMatrix = new THREE.Matrix4();
-            rotationMatrix.makeRotationFromQuaternion(
-              new THREE.Quaternion().setFromUnitVectors(
-                new THREE.Vector3(0, 1, 0),
-                tangent
-              )
-            );
-            secondPlane.applyMatrix4(rotationMatrix);
 
-            /** NEW **/
             let normal2 = secondPlaneGeometry.faces[0].normal;
             let cameraDirection = new THREE.Vector3()
               .subVectors(camera.position, secondPlane.position)
@@ -620,24 +647,38 @@
               .normalize();
 
             normal2.copy(planeNormal);
-            /** END NEW **/
 
             secondAlignerObject.add(secondPlane);
-            //scene.add(secondAlignerObject);
 
             var plane2 = new THREE.Plane().setFromNormalAndCoplanarPoint(
               normal2,
               secondPlane.position
             );
 
+            let repeat = false;
+
+            let usedRayCaster = null;
+            let done = false;
+            let data;
+            let point;
+            let counter = 0;
+            
+            while (done == false) {
+                let raycastCount = 0;
             for (let i = 0; i <= 1; i += 1 / 75) {
-              let point = new THREE.Vector3();
+              point = new THREE.Vector3();
               let angle = i * Math.PI * 2;
               point.x = center.x + radius * Math.cos(angle);
               point.y = center.y + radius * Math.sin(angle);
               point.z = center.z;
 
-              let data = checkPointVisibility(
+              let mode = 0;
+
+              if (usedRayCaster != null) {
+                if (usedRayCaster == false) mode = 1; else mode = 2;
+              } 
+
+              data = checkPointVisibility(
                 currentTubeDirection,
                 point,
                 end,
@@ -645,20 +686,30 @@
                 camera,
                 tube,
                 points,
-                counter
+                counter,
+                mode
               );
 
               points = data.points;
-
-              counter = data.counter;
+              if (data.usedRayCaster == true) raycastCount++;
             }
 
             if (points.length == 0) {
-              return;
+              counter++; 
+            } else {
+              done = true;
             }
 
-            const polarAngle = controls.getPolarAngle();
-            const angleInDegrees = polarAngle * (180 / Math.PI);
+            if (data.raycastCount > 37) usedRayCaster = true;
+
+            if (counter==1) done = true;
+
+        }
+
+            if (points.length == 0) {
+                return;
+            }
+
             let closestPoint = points[0];
             let closestScreenY = Infinity;
             let closestDistance = camera.position.distanceTo(closestPoint);
@@ -780,6 +831,15 @@
         return scaledRadius;
       }
 
+      function getScaledRadius2(mesh) {
+  let scale = mesh.scale;
+  let unscaledRadius = mesh.geometry.boundingSphere.radius;
+  let spherePos = mesh.position;
+  let distanceFromOrigin = spherePos.distanceTo(new THREE.Vector3(0,0,0));
+  let scaledRadius = Math.max(scale.x, scale.y, scale.z) * (unscaledRadius + distanceFromOrigin);
+  return scaledRadius;
+}
+
       function reverseString(str) {
         var splitString = str.split("");
         var reverseArray = splitString.reverse();
@@ -806,7 +866,8 @@
         let dot = cameraToPoint.dot(cameraToTubeEnd);
         let angle = Math.acos(dot);
         let probability = 1 / (1 + Math.exp(-angle));
-        if (probability < 0.53) {
+        let usedRayCaster = true;
+        if ( ( (probability < 0.53) || (counter == 1) ) && (counter != 2) ) {
           let raycaster1 = new THREE.Raycaster();
           let raycaster2 = new THREE.Raycaster();
           let raycaster3 = new THREE.Raycaster();
@@ -861,10 +922,9 @@
             }
           }
         } else {
-          counter++;
           points.push(point);
         }
-        return { points, counter };
+        return { points, usedRayCaster };
       }
 
       function createCharacterMessages(text, curve, tube) {
