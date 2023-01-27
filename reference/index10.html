@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+<script src="OrbitControls.js"></script>
+
+
+</head>
+<body>
+<script>
+
+
+  let texts = [];
+  var curves = [];
+  var percentages = [];
+  var orientations = [];
+  let tubes = [];
+  let occupyableCurves = [];
+
+  let tubeGeometries = [];
+  var font;
+    var manager = new THREE.LoadingManager();
+    var loader = new THREE.FontLoader(manager);
+    loader.load('font.json', function(response) {
+      font = response;
+    });
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 5);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    var textOrientation = new THREE.Object3D();
+    scene.add(textOrientation);
+    let hulls = []; // Array to store the transparent hulls
+
+    var text = "Hello world";
+
+
+    // Set up orbit controls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    //controls.minPolarAngle = -Math.PI/4;
+    //controls.maxPolarAngle = Math.PI/4;
+    let resizedObject;
+
+    // Create sphere
+    const sphereRadius = 1;
+    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+    const sphereMaterial = new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5});
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    
+    const addHull = sphere => {
+        const hullRadius = sphere.scale.x * 2; // Hull radius is twice the size of the sphere radius
+        const hullGeometry = new THREE.SphereGeometry(hullRadius, 32, 32);
+        const hullMaterial = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.5});
+        const hull = new THREE.Mesh(hullGeometry, hullMaterial);
+
+        hull.position.copy(sphere.position);
+        hull.parentSphere = sphere;
+    
+
+       
+
+        scene.add(hull);
+        hulls.push(hull);
+    };
+
+    const MIN_RADIUS = 0.5; // Minimum allowed radius of the sphere
+    scene.add(sphere);
+
+    let isResizing = false;
+    let startingMousePosition = {x: 0, y: 0};
+
+    window.addEventListener('mousedown', event => {
+        console.log("MOUSEDOWN");
+        const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+  mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  // Calculate the intersection between the mouse position and the objects in the scene
+  const intersects = raycaster.intersectObjects(scene.children);
+  console.log(intersects.length);
+  if (intersects.length > 0) {
+    const intersection = intersects[0];
+    const object = intersection.object;
+    if (object instanceof THREE.Mesh && object.material.color.getHex() === 0xaaaaff) {
+
+    isResizing = true;  
+    console.log("resizedObject="+object);
+    resizedObject = object;
+    startingMousePosition = {x: event.clientX, y: event.clientY};
+    }
+}
+    });
+
+    window.addEventListener('mouseup', () => {
+    isResizing = false;
+    });
+
+    window.addEventListener('mousemove', event => {
+  if (!isResizing) return;
+
+  const currentMousePosition = {x: event.clientX, y: event.clientY};
+  const mouseMovement = {
+    x: currentMousePosition.x - startingMousePosition.x,
+    y: currentMousePosition.y - startingMousePosition.y
+  };
+
+  let isHullVisible = false;
+
+  // Update sphere radius based on mouse movement
+  const newRadius =resizedObject.geometry.parameters.radius + mouseMovement.y * 0.01 + mouseMovement.x * 0.01;
+  if (newRadius > resizedObject.parentHull.geometry.parameters.radius) return;
+
+  if (newRadius < MIN_RADIUS) return;
+  console.log("NEWRADIUS:"+newRadius);
+  resizedObject.scale.x = newRadius;
+  resizedObject.scale.y = newRadius;
+  resizedObject.scale.z = newRadius;
+  //resizedObject.tube.sphere2Mesh = resizedObject;
+});
+
+function addSphere(hull) {
+     // Calculate the position of the mouse click on the hull
+  const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+  mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(hull);
+  if (intersects.length > 0) {
+    const intersection = intersects[0];
+    const sphereRadius = hull.scale.x / 4; // New sphere radius is half the size of the hull
+    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+    const sphereMaterial = new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5});
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    
+
+ // create line between inner and outer sphere
+
+    sphere.position.copy(intersection.point);
+    sphere.parentHull = hull;
+    scene.add(sphere);
+
+    console.log("RADIUS:"+sphere.parentHull.parentSphere.geometry.radius);
+       
+
+    
+        let myDirection = new THREE.Vector3().subVectors(sphere.position, hull.position).normalize();
+
+        addText(sphere.parentHull.parentSphere, sphere);
+  }
+}
+
+function addText(sphere1, sphere2) {
+
+  console.log(sphere1.position);
+  console.log(sphere2.position);
+
+// Create the line curve and tube geometry
+
+
+let curve = new THREE.LineCurve3( sphere1.position, sphere2.position );
+
+console.log("CURVE");
+tubeGeometry = new THREE.TubeGeometry( curve, 20, 0.05, 8, false );
+
+// Create the tube mesh and add it to the scene
+//var tubeMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+// Create a ShaderMaterial with a custom fragment shader
+var tubeMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        color1: { value: new THREE.Color(0xff0000) },
+        color2: { value: new THREE.Color(0x0000ff) },
+        mixAmount: { value: 0.5 }
+    },
+    vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+            vNormal = normal;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform vec3 color1;
+        uniform vec3 color2;
+        uniform float mixAmount;
+        varying vec3 vNormal;
+        void main() {
+            gl_FragColor = vec4(mix(color1, color2, dot(vNormal, vec3(0.0, 0.0, 1.0))), 1.0);
+        }
+    `
+});
+var tube = new THREE.Mesh( tubeGeometry, tubeMaterial );
+tube.sphere1Mesh = sphere1;
+tube.sphere1Mesh.tube = tube;
+tube.sphere2Mesh = sphere2;
+tube.sphere2Mesh.tube = tube;
+
+var characters = text.split('');
+
+charactersMeshes = [];
+
+// Create a text geometry for each character
+characters.forEach(function(character, index) {
+    var textGeometry = new THREE.TextGeometry(character, {
+        font: font,
+        size: 0.1,
+        height: 0.05
+    });
+    // Create a mesh for each character
+    var textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    var characterMesh = new THREE.Mesh(textGeometry, textMaterial);
+    // Position the character mesh in the correct location
+    //characterMesh.position.set(-offset + index * 0.5 + sphere1.position.x, sphere1.position.y, sphere.position.z);
+
+    var curvePoint = curve.getPointAt(0 + (index / text.length));
+    var tangent = curve.getTangent(index / text.length);
+
+characterMesh.position.copy(curvePoint);
+characterMesh.position.add(tangent.multiplyScalar(0.2));
+
+// Add the tube as a child of the parent object
+scene.add(tube);
+
+
+characterMesh.parent = tube;
+    charactersMeshes.push(characterMesh);
+    
+    /*let quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 1, 0));
+    characterMesh.setRotationFromQuaternion(quat);*/
+    scene.add(characterMesh);
+});
+
+texts.push(charactersMeshes);
+curves.push(curve);
+
+
+var textOrientation = new THREE.Object3D();
+
+// Add the text orientation object to the scene
+scene.add(textOrientation);
+
+orientations.push(textOrientation);
+
+tubes.push(tube);
+tubeGeometries.push(tubeGeometry);
+
+percentages.push(0);
+
+}
+
+window.addEventListener('dblclick', () => {
+    const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+  mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  // Calculate the intersection between the mouse position and the objects in the scene
+  const intersects = raycaster.intersectObjects(scene.children);
+  console.log(intersects.length);
+  if (intersects.length > 0) {
+    const intersection = intersects[0];
+    const object = intersection.object;
+    if (object instanceof THREE.Mesh && object.material.color.getHex() === 0xaaaaff) {
+        addHull(object);
+    } else {
+        addSphere(object);
+    }
+  }
+   
+    isHullVisible = true;
+});
+
+// rotation speed and starting percentage
+var percentage = 0;
+let radius = 0.10;
+let offset = 0.20;
+    
+    const animate = () => {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+      
+    for (let i = 0; i < texts.length; i++) {
+
+   
+    let charactersMeshes = texts[i];
+    let tubeGeometry = tubeGeometries[i];
+    let tube  = tubes[i];
+ 
+
+    let myDirection;
+
+    let opposite = false;
+
+    if (checkIfTubeIsOnRightOrLeft(tubeGeometry.parameters.path.getPointAt(0.5))) {
+        
+        myDirection = new THREE.Vector3().subVectors(tube.sphere2Mesh.position, tube.sphere1Mesh.position).normalize();
+        startPosition = tube.sphere1Mesh.position.clone().add(myDirection.clone().multiplyScalar(getScaledRadius(tube.sphere1Mesh)));
+        endPosition = tube.sphere2Mesh.position.clone().sub(myDirection.clone().multiplyScalar(getScaledRadius(tube.sphere2Mesh)));
+        console.log(endPosition);
+        console.log("RADIUS");
+        console.log(getScaledRadius(tube.sphere2Mesh));
+    } else {
+            
+        myDirection = new THREE.Vector3().subVectors(tube.sphere2Mesh.position, tube.sphere1Mesh.position).normalize();
+        
+        endPosition = tube.sphere1Mesh.position.clone().add(myDirection.clone().multiplyScalar(getScaledRadius(tube.sphere1Mesh)));
+        startPosition = tube.sphere2Mesh.position.clone().sub(myDirection.clone().multiplyScalar(getScaledRadius(tube.sphere2Mesh)));
+       
+    }
+
+           
+    function getScaledRadius(mesh) {
+  let scale = mesh.scale;
+  let unscaledRadius = mesh.geometry.boundingSphere.radius;
+  let scaledRadius = Math.max(scale.x, scale.y, scale.z) * unscaledRadius;
+  return scaledRadius;
+}
+
+  
+    charactersMeshes.forEach(function(characterMesh, index) {
+       
+       
+        let points = [];
+        var center = tubeGeometry.parameters.path.getPointAt(0.75);
+        for (let i = 0; i <= 1; i += (1/90)) {
+            let point = new THREE.Vector3();
+            let angle = i * Math.PI * 2;
+            point.x = center.x + radius * Math.cos(angle);
+            point.y = center.y + radius * Math.sin(angle);
+            point.z = center.z;
+            let vectorToPoint = new THREE.Vector3().subVectors(point, camera.position);
+            let angleBetween = vectorToPoint.angleTo(camera.getWorldDirection(new THREE.Vector3()));
+            if (angleBetween <= Math.PI / 2) {
+                points.push(point);
+            }
+        
+        }
+
+        let closestPoint = points[0];
+        let closestScreenY = Infinity;
+        let closestDistance = camera.position.distanceTo(closestPoint);
+        points.forEach(point => {
+            let distance = camera.position.distanceTo(point);
+            let screenPos = point.clone().project(camera);
+            let weightDistance = 0.25;
+            let weightY = 0.75;
+            let screenY = screenPos.y;
+            if (distance * weightDistance + screenY * (1 - weightY) < closestDistance * weightDistance + closestScreenY * (1 - weightY)) {
+              
+                closestPoint = point;
+                closestDistance = distance;
+                closestScreenY = screenY;
+            }
+        } );
+    
+            let position = closestPoint;
+
+            let tubeRadius = 0.2;
+            let reference = closestPoint;
+            let tubeStart = startPosition;
+            let direction2 = new THREE.Vector3().subVectors(reference, tubeStart).normalize();
+            let angle = Math.acos(direction2.dot(new THREE.Vector3(1, 0, 0)));
+            
+            let startPosition2 = new THREE.Vector3(tubeStart.x + tubeRadius * Math.cos(angle), tubeStart.y + tubeRadius * Math.sin(angle), tubeStart.z);
+
+            let tubeRadius2 = 0.2;
+            let reference2 = closestPoint;
+            let tubeStart2 = endPosition;
+            let direction3 = new THREE.Vector3().subVectors(reference2, tubeStart2).normalize();
+            let angle2 = Math.acos(direction3.dot(new THREE.Vector3(1, 0, 0)));
+            
+        let endPosition2 = new THREE.Vector3(tubeStart2.x + tubeRadius2 * Math.cos(angle2), tubeStart2.y + tubeRadius2 * Math.sin(angle2), tubeStart2.z);
+
+
+           
+            let distance = startPosition.distanceTo(endPosition) / (charactersMeshes.length - 1);
+          
+          
+
+            let direction = new THREE.Vector3().subVectors(endPosition, startPosition).normalize();
+
+
+            let pos = startPosition2.clone().add(direction.clone().multiplyScalar(index * distance));
+
+            characterMesh.position.set(pos.x, pos.y, pos.z);
+
+
+
+characterMesh.lookAt(camera.position);
+
+let line =  new THREE.Line3(startPosition, endPosition);
+
+
+/*
+let tubeRadius = 0.2;
+let tubeStartVector = tube.sphere1Mesh.position;
+if (tubeStartVector.length()==0) {
+    tubeStartVector = new THREE.Vector3(0.0001, 0.0001, 0.0001);
+}
+let tubeEndVector = tube.sphere2Mesh.position;
+let occupyStartVector = startPosition;
+let occupyEndVector = endPosition;
+
+console.log("tubeStartVecotr.length:"+tubeStartVector.length());
+console.log("occupyStartVecotr.length:"+occupyStartVector.length());
+console.log("occupyEndVecotr.length:"+occupyEndVector.length());
+
+// Next, use the radius of the tube to determine the distance the meshes should be moved away from the tube
+let distance2 = tube.geometry.boundingSphere.radius + 0.5; // some_value is the distance you want the meshes to be away from the tube
+
+let occupyStartAngle = Math.acos(tubeStartVector.dot(occupyStartVector) / (tubeStartVector.length() * occupyStartVector.length()));
+let occupyEndAngle = Math.acos(tubeStartVector.dot(occupyEndVector) / (tubeStartVector.length() * occupyEndVector.length()));
+console.log(occupyStartAngle+"/"+occupyEndAngle);
+    // Generate a random angle between the occupyStartAngle and occupyEndAngle
+    let angle = Math.random() * (occupyEndAngle - occupyStartAngle) + occupyStartAngle;
+    // Use the angle and distance to calculate the new position of the mesh
+    characterMesh.position.x = distance2 * Math.cos(angle);
+    characterMesh.position.y = distance2 * Math.sin(angle);
+    let zAngle = Math.random() * 2 * Math.PI;
+    characterMesh.position.z = distance2 * Math.cos(zAngle);
+    console.log(characterMesh.x+"/"+characterMesh.y+"/"+characterMesh.z);
+*/  
+
+});
+    }
+
+
+
+    };
+
+
+function checkIfTubeIsOnRightOrLeft(tubeEndPosition) {
+    var cameraDirection = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0, 0, 0)).normalize();
+    var tubeDirection = new THREE.Vector3().subVectors(tubeEndPosition, new THREE.Vector3(0, 0, 0)).normalize();
+    var crossProduct = new THREE.Vector3().crossVectors(cameraDirection, tubeDirection);
+    var y = crossProduct.y;
+    if (y > 0) {
+        return true;
+    } else {
+        return false;
+    } 
+}
+    animate();    
+
+</script>
+
+</body>
+</html>
