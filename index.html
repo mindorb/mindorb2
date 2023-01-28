@@ -45,7 +45,7 @@
       var movingHull = null;
       var changedTexts =[];
 
-      var originalRadius;
+      var originalRadius = 0.2;
       var lastRadius;
 
       loader.load("font.json", function (response) {
@@ -207,12 +207,13 @@
     // calculate new radius based on the original radius
     let newRadius = originalRadius + mouseMovement.y * 0.01 + mouseMovement.x * 0.01;
 
+    console.log("NEWRADIUS:"+newRadius);
         let isHullVisible = false;
         let maxParentSphereRadius;
         
         if (isResizing) {
           if (!resizedObject.parentHull) return;
-        if ( (newRadius > resizedObject.parentHull.geometry.parameters.radius) )
+        if ( (newRadius > resizedObject.parentHull.geometry.parameters.radius/2) )
           return;
         } else if (recursiveResizing) {
             
@@ -259,9 +260,12 @@
         for (var i = 0; i < changedTexts.length; i++) {
         changedTexts[i] = true;
         }
-       
+        resizedObject.scale.x = newRadius;
+        resizedObject.scale.y = newRadius;
+        resizedObject.scale.z = newRadius;
 
         if (recursiveResizing) {
+        
         console.log("Check too largge");
         if  (newRadius >= getScaledRadius(resizedObject) )  {
           if (resizedObject.parentSphere && resizedObject.parentSphere.parentHull) {
@@ -308,34 +312,43 @@
   changeSpheres(resizedObject, newRadius, false);
 }
         
-        resizedObject.scale.x = newRadius;
-        resizedObject.scale.y = newRadius;
-        resizedObject.scale.z = newRadius;
+       
         
         if (isResizing) {
+          console.log("TUBE:");
+          console.log(resizedObject.tube);
+          console.log(getScaledRadius(resizedObject));
+          console.log( getScaledRadius(resizedObject.tube.sphere1Mesh));
+          console.log(newRadius);
+          tubeGeometry = new THREE.CylinderGeometry(newRadius/4, getScaledRadius(resizedObject.tube.sphere1Mesh)/4, resizedObject.tube.curve.getLength(), 32)
         
-        tubeGeometry = new THREE.TubeGeometry(
-          resizedObject.curve,
-          20,
-          0.1*getScaledRadius(resizedObject),
-          8,
-          false
-        );
         
-        scene.remove(resizedObject.tube);
+var tubeMaterial = new THREE.MeshBasicMaterial({
+  color: 0xff0000,
+  transparent: false,
+});
+scene.remove(resizedObject.tube);
+var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+// Position and rotate the cylinder to match the curve
+var quaternion = new THREE.Quaternion();
+quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(resizedObject.tube.sphere2Mesh.position,resizedObject.tube.sphere1Mesh.position).normalize());
+var distance = resizedObject.tube.sphere1Mesh.position.distanceTo(resizedObject.tube.sphere2Mesh.position);
+tubeGeometry.parameters.height = distance; // update the height of the cylinder
+tubeGeometry.translate(0, distance/2, 0); //translate cylinder along the y-axis by distance/2
 
-        var tubeMaterial = new THREE.MeshBasicMaterial({
-          color: 0xff0000,
-          transparent: false,
-          opacity: 0.5,
-        });
-
-        var tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
-
-        resizedObject.tube = tubeMesh;
+var matrix = new THREE.Matrix4();
+matrix.makeRotationFromQuaternion(quaternion);
+matrix.setPosition(resizedObject.tube.sphere1Mesh.position);
+tube.applyMatrix4(matrix);
+      
+        tube.sphere1Mesh = resizedObject.tube.sphere1Mesh;
+        tube.sphere2Mesh = resizedObject.tube.sphere2Mesh;
+        tube.curve = resizedObject.tube.curve;
+        resizedObject.tube = tube;
         resizedObject.tubeGeometry = tubeGeometry;
 
-        scene.add(tubeMesh);
+        scene.add(tube);
+       
       } else if (recursiveResizing) {
 
         let hull = resizedObject.parentSphere.parentHull;
@@ -397,24 +410,40 @@
             let end = bigSphere.spheres[i].position;
             let curve = new THREE.LineCurve3(start, end);
 
-            tubeGeometry = new THREE.TubeGeometry(
-            curve,
-            50,
-            0.1*getScaledRadius(bigSphere),
-            8,
-            false
-            );
+            
+            tubeGeometry = new THREE.CylinderGeometry( getScaledRadius(smallSphere)/4,getScaledRadius(bigSphere.parentSphere)/4, curve.getLength(), 32)
+        
+        
+        var tubeMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: false,
+        });
+        var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        
+        var quaternion = new THREE.Quaternion();
+        quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(bigSphere.spheres[i].position,bigSphere.position).normalize());
+        var distance = bigSphere.spheres[i].position.distanceTo(bigSphere.position);
+        tubeGeometry.parameters.height = distance; // update the height of the cylinder
+        console.log("DISTANCE");
+        console.log(distance);
+        tubeGeometry.translate(0, distance/2, 0); //translate cylinder along the y-axis by distance/2
+        
+        var matrix = new THREE.Matrix4();
+        matrix.makeRotationFromQuaternion(quaternion);
+        matrix.setPosition(bigSphere.position);
+        tube.applyMatrix4(matrix);
+                console.log("BIGSPHERE");
+                console.log(bigSphere);
+                //tube.sphere1Mesh = bigSphere.tube.sphere1Mesh;
+                //tube.sphere2Mesh = bigSphere.tube.sphere2Mesh;
+                //tube.curve = bigSphere.tube.curve;
+                bigSphere.spheres[i].tube = tube;
+                bigSphere.spheres[i].tubeGeometry = tubeGeometry;
+         
+                scene.add(tube);
 
-            var tubeMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            transparent: false,
-            opacity: 0.5,
-            });
 
-            var tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
-            bigSphere.spheres[i].tube = tubeMesh;
-            bigSphere.spheres[i].tubeGeometry = tubeGeometry;
-            scene.add(tubeMesh);
+
 
             if (!bigSphere.spheres[i].belongingHull) {
 
@@ -457,13 +486,7 @@ const moveHull  = (movingHull) => {
             console.log(2);
           
           let curve = new THREE.LineCurve3(movingHull.parentSphere.parentHull.position, intersection.point);
-          tubeGeometry = new THREE.TubeGeometry(
-          curve,
-          20,
-          0.1*getScaledRadius(object),
-          8,
-          false
-        );
+          let tubeGeometry = new THREE.CylinderGeometry(getScaledRadius(movingHull.parentSphere.tube.sphere2Mesh)/4, getScaledRadius(movingHull.parentSphere.tube.sphere1Mesh)/4, curve.getLength(), 32)
         
         let originalPosition = movingHull.parentSphere.position.clone();
         movingHull.parentSphere.position.copy(intersection.point);
@@ -476,12 +499,27 @@ const moveHull  = (movingHull) => {
           opacity: 0.5,
         });
 
-        var tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+// Position and rotate the cylinder to match the curve
+var quaternion = new THREE.Quaternion();
+quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(movingHull.parentSphere.tube.sphere2Mesh.position,movingHull.parentSphere.tube.sphere1Mesh.position).normalize());
+var distance = movingHull.parentSphere.tube.sphere1Mesh.position.distanceTo(movingHull.parentSphere.tube.sphere2Mesh.position);
+tubeGeometry.parameters.height = distance; // update the height of the cylinder
+tubeGeometry.translate(0, distance/2, 0); //translate cylinder along the y-axis by distance/2
 
-        movingHull.parentSphere.tube = tubeMesh;
+var matrix = new THREE.Matrix4();
+matrix.makeRotationFromQuaternion(quaternion);
+matrix.setPosition(movingHull.parentSphere.tube.sphere1Mesh.position);
+tube.applyMatrix4(matrix);
+      
+        tube.sphere1Mesh = movingHull.parentSphere.tube.sphere1Mesh;
+        tube.sphere2Mesh = movingHull.parentSphere.tube.sphere2Mesh;
+        tube.curve = movingHull.parentSphere.tube.curve;
+        
+        movingHull.parentSphere.tube = tube;
         movingHull.parentSphere.tubeGeometry = tubeGeometry;
 
-        scene.add(tubeMesh);
+        scene.add(tube);
         for (var z = 0; z < changedTexts.length; z++) {
         changedTexts[z] = true;
         }
@@ -713,7 +751,6 @@ tube.applyMatrix4(matrix);
 
       // rotation speed and starting percentage
       var percentage = 0;
-      let radius = 0.4;
       let offset = 0.2;
 
       //animate()
@@ -725,7 +762,7 @@ tube.applyMatrix4(matrix);
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
           let tubeGeometry = tubeGeometries[i];
-          let tube = tubes[i];
+          var tube = tubes[i];
           let description = descriptions[i];
           var curve = curves[i];
           let myDirection;
@@ -835,13 +872,13 @@ tube.applyMatrix4(matrix);
           
               let divider = 1/15;
               if (counter==1) {
-                  divider = 1/60;
+                  divider = 1/30;
               }
-            for (let i = 0; i <= 1; i += divider ) {
+            for (let x = 0; x <= 1; x += divider ) {
               point = new THREE.Vector3();
-              let angle = i * Math.PI * 2;
-              point.x = center.x + radius * Math.cos(angle);
-              point.y = center.y + radius * Math.sin(angle);
+              let angle = x * Math.PI * 2;
+              point.x = center.x + tube.sphere1Mesh.geometry.parameters.radius/2 * Math.cos(angle);
+              point.y = center.y + tube.sphere1Mesh.geometry.parameters.radius/2 * Math.sin(angle);
               point.z = center.z;
 
               let mode = 0;
@@ -881,8 +918,7 @@ tube.applyMatrix4(matrix);
 
         //console.error("LEN:"+points.length);
             if (points.length == 0) {
-              changedTexts[i]=true;
-                return;
+             points.push(characterMesh.position);
             }
 
             let closestPoint = points[0];
@@ -904,8 +940,6 @@ tube.applyMatrix4(matrix);
                 closestScreenY = screenY;
               }
             });
-
-            let position = closestPoint;
 
             let reference = closestPoint;
 
@@ -961,8 +995,6 @@ tube.applyMatrix4(matrix);
             characterMesh.position.set(pos.x, pos.y, pos.z);
         
             characterMesh.lookAt(camera.position);
-
-            //characterMesh.quaternion.setFromEuler(characterMesh.rotation);
 
             var isInScene = false;
 
@@ -1115,8 +1147,7 @@ tube.applyMatrix4(matrix);
           var characterMesh = new THREE.Mesh(textGeometry, textMaterial);
 
           let distance2 = new THREE.Vector3().subVectors(endPosition, startPosition).length();
-            //let boundingBox2 = new THREE.Box3().setFromObject(characterMesh);
-            //let size2 = boundingBox2.getSize(new THREE.Vector3());
+          
             let scaling = distance2 / 0.1 * 0.05;
             characterMesh.scale.set(scaling, scaling, scaling);
             
