@@ -45,6 +45,9 @@
       var movingHull = null;
       var changedTexts =[];
 
+      var originalRadius;
+      var lastRadius;
+
       loader.load("font.json", function (response) {
         font = response;
       });
@@ -110,7 +113,6 @@
       let isResizing = false;
       let recursiveResizing = false;
       let startingMousePosition = { x: 0, y: 0 };
-      let originalRadius;
 
       window.addEventListener("mousedown", (event) => {
 
@@ -149,17 +151,21 @@
             object instanceof THREE.Mesh &&
             object.material.color.getHex() === 0xffffff
           ) {
-            controls.enabled = false;
 
             if (event.altKey) {
+              
+            controls.enabled = false;
                 movingHull = object;
             } else if (event.shiftKey) {
 
+              controls.enabled = false;
             resizedObject = object;
             if (!object.parentSphere.parentHull) {
                 originalRadius = object.geometry.parameters.radius / 2;
+                lastRadius = object.geometry.parameters.radius / 2;
             } else {
               originalRadius = object.geometry.parameters.radius;
+              lastRadius = object.geometry.parameters.radius;
             }
             startingMousePosition = { x: event.clientX, y: event.clientY };
             recursiveResizing = true;
@@ -199,70 +205,123 @@
     };
 
     // calculate new radius based on the original radius
-    const newRadius = originalRadius + mouseMovement.y * 0.01 + mouseMovement.x * 0.01;
+    let newRadius = originalRadius + mouseMovement.y * 0.01 + mouseMovement.x * 0.01;
 
         let isHullVisible = false;
-
+        let maxParentSphereRadius;
+        
         if (isResizing) {
           if (!resizedObject.parentHull) return;
         if ( (newRadius > resizedObject.parentHull.geometry.parameters.radius) )
           return;
         } else if (recursiveResizing) {
             
-            if (newRadius < originalRadius) {
-
+          if (newRadius > resizedObject.scale.x ) { 
+            maxParentSphereRadius = 9999;
+          }
+          else {
+            maxParentSphereRadius = 0;
+          }
             if (resizedObject.spheres) {
-                let maxParentSphereRadius = 9999;
                 for (let x = 0; x < resizedObject.spheres.length; x++) {
                     if (resizedObject.spheres[x].belongingHull) {
+
+                      if (newRadius > resizedObject.scale.x ) { 
+
                     if (getScaledRadius(resizedObject.spheres[x].belongingHull)<maxParentSphereRadius) {
                         maxParentSphereRadius = getScaledRadius(resizedObject.spheres[x].belongingHull);
+                       
                     }
-                }
-                }
 
-                    if  ( (resizedObject.position.x==0) && (resizedObject.position.y == 0) && (resizedObject.position.z==0) ) {
-                        if (getScaledRadius(resizedObject) < maxParentSphereRadius*6) return;
-                    } else {
-                        if (getScaledRadius(resizedObject) < maxParentSphereRadius*3) return;
+                  } else {
+
+                    if (getScaledRadius(resizedObject.spheres[x].belongingHull)>maxParentSphereRadius) {
+                        maxParentSphereRadius = getScaledRadius(resizedObject.spheres[x].belongingHull);
                     }
-                } else {
-                return; // Return when there is no sphere connected
-                }
 
-            } else {
-                if (getScaledRadius(resizedObject)>getScaledRadius(resizedObject.parentSphere.belongingHull)) {
-                    return;
+                  }
+                  if  ( (resizedObject.position.x==0) && (resizedObject.position.y == 0) && (resizedObject.position.z==0) ) {
+                          maxParentSphereRadius = maxParentSphereRadius * 2;
+                        }
                 }
-            }
-    }
+                }
+              }
+           
+            
+
+           
+          }
+            
 
        
-
+            lastRadius = newRadius;
 
         for (var i = 0; i < changedTexts.length; i++) {
         changedTexts[i] = true;
         }
-        if  ( (resizedObject.position.x==0) && (resizedObject.position.y == 0) && (resizedObject.position.z==0) ) {
+       
+
+        if (recursiveResizing) {
+        console.log("Check too largge");
+        if  (newRadius >= getScaledRadius(resizedObject) )  {
+          if (resizedObject.parentSphere && resizedObject.parentSphere.parentHull) {
+            console.log(getScaledRadius(resizedObject) +">" + getScaledRadius(resizedObject.parentSphere.parentHull) );
+              if ( getScaledRadius(resizedObject) > getScaledRadius(resizedObject.parentSphere.parentHull)/2 ) {
+              
+                console.log("RETURN TOO LARGGE"+maxParentSphereRadius)
+                recursiveResizing = false;
+                lastRadius = newRadius;
+                return;
+              }
+             
+            }
+           }  
+            console.log(newRadius + "<= "+getScaledRadius(resizedObject));
+              if (newRadius <= resizedObject.scale.x ) { 
+                console.log("Check to small1");
+                if (resizedObject.parentSphere && resizedObject.parentSphere.parentHull) {
+              if (getScaledRadius(resizedObject) < getScaledRadius(resizedObject.parentSphere.parentHull)/4) {
+                    recursiveResizing = false;
+                  lastRadius = newRadius;
+                  console.log("RETURN TOO SMALL2"+maxParentSphereRadius);
+                }
+              }
+              }
+                console.log(newRadius + "<= "+resizedObject.scale.x);
+             if (newRadius <= getScaledRadius(resizedObject) ) { 
+                console.log("Check to small2");
+              if ( (getScaledRadius(resizedObject)<=maxParentSphereRadius) && (maxParentSphereRadius!=9999) ) {
+                  
+                  recursiveResizing = false;
+                  lastRadius = newRadius;
+                  console.log("RETURN TOO SMALL1"+maxParentSphereRadius);
+                    return;
+                }
+             }
+
+            }
+                
+            if  ( (resizedObject.position.x==0) && (resizedObject.position.y == 0) && (resizedObject.position.z==0) ) {
   
-        changeSpheres(resizedObject, newRadius * 2);
-        } else {
-          changeSpheres(resizedObject, newRadius);
-        }
+  changeSpheres(resizedObject, newRadius * 2, false);
+} else {
+  changeSpheres(resizedObject, newRadius, false);
+}
+        
         resizedObject.scale.x = newRadius;
         resizedObject.scale.y = newRadius;
         resizedObject.scale.z = newRadius;
         
         if (isResizing) {
-
         
         tubeGeometry = new THREE.TubeGeometry(
           resizedObject.curve,
           20,
-          0.1,
+          0.1*getScaledRadius(resizedObject),
           8,
           false
         );
+        
         scene.remove(resizedObject.tube);
 
         var tubeMaterial = new THREE.MeshBasicMaterial({
@@ -294,7 +353,7 @@
               hull.scale.z = resizedObject.scale.z *2;
             }
           }
-          changeSpheres(hull, getScaledRadius(hull));
+         changeSpheres(hull, getScaledRadius(hull));
           
           if ( (hull.parentSphere) && (hull.parentSphere.parentHull) ) {
             hull = hull.parentSphere.parentHull;
@@ -306,7 +365,11 @@
       }
       });
 
-      function changeSpheres(bigSphere, newRadius) {
+      function getTubeRadius(outerSphereRadius, innerSphereRadius, transparentSphereRadius) {
+        return (getScouterSphereRadius - innerSphereRadius) / transparentSphereRadius;
+      }
+
+      function changeSpheres(bigSphere, newRadius, recursive) {
         if (!bigSphere.spheres) return;
         for (let i = 0; i < bigSphere.spheres.length; i++) {
 
@@ -337,7 +400,7 @@
             tubeGeometry = new THREE.TubeGeometry(
             curve,
             50,
-            0.1,
+            0.1*getScaledRadius(bigSphere),
             8,
             false
             );
@@ -349,7 +412,6 @@
             });
 
             var tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
-            //tubeMesh.position.add(bigSphere.position);
             bigSphere.spheres[i].tube = tubeMesh;
             bigSphere.spheres[i].tubeGeometry = tubeGeometry;
             scene.add(tubeMesh);
@@ -374,6 +436,7 @@
 }
 
 const moveHull  = (movingHull) => {
+  console.log("move");
         const mouse = new THREE.Vector2();
         mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
         mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
@@ -383,22 +446,26 @@ const moveHull  = (movingHull) => {
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
 
+        console.log(0);
         if (intersects.length > 0) {
-            
+            console.log(1);
           for (var i = 0; i < intersects.length; i++) {
           const intersection = intersects[i];
           const object = intersection.object;
+          let originalPos = object.position.clone();
           if (object.uuid == movingHull.parentSphere.parentHull.uuid)  {
-            
+            console.log(2);
           
-          let curve = new THREE.LineCurve3(movingHull.parentSphere.parentHull.position.clone(), intersection.point);
+          let curve = new THREE.LineCurve3(movingHull.parentSphere.parentHull.position, intersection.point);
           tubeGeometry = new THREE.TubeGeometry(
           curve,
           20,
-          0.1,
+          0.1*getScaledRadius(object),
           8,
           false
         );
+        
+        let originalPosition = movingHull.parentSphere.position.clone();
         movingHull.parentSphere.position.copy(intersection.point);
         movingHull.position.copy(intersection.point);
         scene.remove(movingHull.parentSphere.tube);
@@ -415,9 +482,17 @@ const moveHull  = (movingHull) => {
         movingHull.parentSphere.tubeGeometry = tubeGeometry;
 
         scene.add(tubeMesh);
-        for (var i = 0; i < changedTexts.length; i++) {
-        changedTexts[i] = true;
+        for (var z = 0; z < changedTexts.length; z++) {
+        changedTexts[z] = true;
         }
+        if (movingHull.spheres) {
+         for (var x = 0; x < movingHull.spheres.length; x++) {
+          console.log("originalPos:"+originalPos);
+          
+        changePos(distanceBetweenPositions(originalPosition,intersection.point),movingHull, movingHull)
+        }
+      }
+
     }
 }
           }
@@ -431,7 +506,7 @@ const moveHull  = (movingHull) => {
 
       function changePos(vector, hullSphere, parentHull) {
         if (hullSphere) {
-    if ( (!parentHull) || (getScaledRadius(hullSphere)<getScaledRadius(parentHull)) ) {
+    if (true) { // ( (!parentHull) || (getScaledRadius(hullSphere)<getScaledRadius(parentHull)) ) {
     
             hullSphere.position.add(vector);
         
@@ -483,7 +558,7 @@ const moveHull  = (movingHull) => {
         const intersects = raycaster.intersectObject(hull);
         if (intersects.length > 0) {
           const intersection = intersects[0];
-          const sphereRadius = hull.scale.x / 4; // New sphere radius is half the size of the hull
+          const sphereRadius = getScaledRadius(hull) / 8; // New sphere radius is half the size of the hull
           const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
           const sphereMaterial = new THREE.MeshBasicMaterial({
             color: 0xaaaaff,
@@ -506,7 +581,7 @@ const moveHull  = (movingHull) => {
           sphere.tube = addText(
             document.getElementById("description").value,
             sphere.parentHull.parentSphere,
-            sphere
+            sphere, sphereRadius
           );
 
           if (!hull.spheres) {
@@ -518,18 +593,34 @@ const moveHull  = (movingHull) => {
         }
       }
 
-      function addText(description, sphere1, sphere2) {
+      function addText(description, sphere1, sphere2, sphereRadius) {
         // Create the line curve and tube geometry
 
         let curve = new THREE.LineCurve3(sphere1.position, sphere2.position);
 
-        tubeGeometry = new THREE.TubeGeometry(curve, 20, 0.1, 8, false);
+//        tubeGeometry = new THREE.TubeGeometry(curve, 20, 0.1, 8, false);
+        tubeGeometry = new THREE.CylinderGeometry(sphereRadius/4, getScaledRadius(sphere1)/4, curve.getLength(), 32)
+
+        
         var tubeMaterial = new THREE.MeshBasicMaterial({
           color: 0xff0000,
           transparent: false,
-          opacity: 0.5,
         });
         var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        console.log(tube.geometry.parameters.height/2);
+        // Position and rotate the cylinder to match the curve
+        var quaternion = new THREE.Quaternion();
+quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(sphere2.position, sphere1.position).normalize());
+var distance = sphere1.position.distanceTo(sphere2.position);
+tubeGeometry.parameters.height = distance; // update the height of the cylinder
+tubeGeometry.translate(0, distance/2, 0); //translate cylinder along the y-axis by distance/2
+
+var matrix = new THREE.Matrix4();
+matrix.makeRotationFromQuaternion(quaternion);
+matrix.setPosition(sphere1.position);
+tube.applyMatrix4(matrix);
+
+
         tube.sphere1Mesh = sphere1;
         tube.sphere2Mesh = sphere2;
         tube.sphere2Mesh.tube_curve = curve;
@@ -642,7 +733,8 @@ const moveHull  = (movingHull) => {
           let opposite = false;
 
           let currentTubeDirection = checkIfTubeIsOnRightOrLeft(
-            tubeGeometry.parameters.path.getPointAt(0.5)
+            //tubeGeometry.parameters.path.getPointAt(0.5)
+            curve.getPointAt(0.5)
           );
 
           myDirection = new THREE.Vector3()
@@ -789,6 +881,7 @@ const moveHull  = (movingHull) => {
 
         //console.error("LEN:"+points.length);
             if (points.length == 0) {
+              changedTexts[i]=true;
                 return;
             }
 
