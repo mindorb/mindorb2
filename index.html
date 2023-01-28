@@ -524,11 +524,10 @@ tube.applyMatrix4(matrix);
         changedTexts[z] = true;
         }
         if (movingHull.spheres) {
-         for (var x = 0; x < movingHull.spheres.length; x++) {
-          console.log("originalPos:"+originalPos);
+         //for (var x = 0; x < movingHull.spheres.length; x++) {
           
         changePos(distanceBetweenPositions(originalPosition,intersection.point),movingHull, movingHull)
-        }
+        //}
       }
 
     }
@@ -542,12 +541,13 @@ tube.applyMatrix4(matrix);
         return colors[color];
       }
 
-      function changePos(vector, hullSphere, parentHull) {
+      function changePos(vector, hullSphere) {
         if (hullSphere) {
-    if (true) { // ( (!parentHull) || (getScaledRadius(hullSphere)<getScaledRadius(parentHull)) ) {
     
             hullSphere.position.add(vector);
-        
+            if (hullSphere.tube) {
+                hullSphere.tube.position.add(vector);
+            }
             if (hullSphere.spheres) {
             let spheres = hullSphere.spheres;
             for (let z = 0; z < hullSphere.spheres.length; z++) {
@@ -555,14 +555,13 @@ tube.applyMatrix4(matrix);
             if (hullSphere.spheres[z].tube) {
                 hullSphere.spheres[z].tube.position.add(vector);
             }
-            changePos(vector, hullSphere.spheres[z].belongingHull, hullSphere.spheres[z].parentHull);
+            changePos(vector, hullSphere.spheres[z].belongingHull);
             }
         }
         }
     }
 
 
-      }
 
       function updateText() {
         let description = document.getElementById("description").value;
