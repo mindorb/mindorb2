@@ -27,7 +27,7 @@
     <input type="button" value="Delete" style="
     z-index: 100;
     border-radius: 0px solid;
-    border-color: black;;" id="updateDelete" /><input
+    border-color: black;" id="updateDelete" onclick="deleteSphere();" /><input
       type="text"
       id="updateSelection"
       onkeyup="updateSelection();"
@@ -749,6 +749,55 @@ tube.applyMatrix4(matrix);
         },
         false
       );
+      
+
+      function deleteSphere() {
+
+        deleteSphereSub(updatingTextObject.uuid);
+        document.getElementById('updateDIV').style.display='none';
+      }
+
+      function deleteSphereSub(uuid) {
+        for (var i = 0; i < tubes.length; i++) {
+          let tube = tubes[i];
+          if (tube.uuid == uuid) {
+            console.log("TUBE");
+            console.log(tube);
+            tubes.splice(i, 1);
+            changedTexts.splice(i, 1);
+            descriptions.splice(i,1);
+            curves.splice(i,1);
+            let charactersMeshes = texts[i];
+            for (let z = 0; z < charactersMeshes.length; z++) {
+              scene.remove(charactersMeshes[z]);
+            }
+            texts.splice(i, 1);
+            previousCheckIfTubeIsOnRightOrLeft.splice(i,1);
+            scene.remove(tube.sphere2Mesh);
+            scene.remove(tube);
+
+
+            if ( tube.sphere2Mesh.belongingHull) {
+              
+              if (tube.sphere2Mesh.belongingHull.spheres) {
+
+            for (var z = 0; z < tube.sphere2Mesh.belongingHull.spheres.length; z++) {
+              console.log("Deleting uuid "+tube.sphere2Mesh.belongingHull.spheres[z].tube.uuid);
+           
+              deleteSphereSub(tube.sphere2Mesh.belongingHull.spheres[z].tube.uuid);
+            }
+            
+          
+            }
+            scene.remove(tube.sphere2Mesh.belongingHull);
+          }
+
+          break;
+          }
+
+        }
+      }
+
 
       window.addEventListener("dblclick", () => {
         const mouse = new THREE.Vector2();
