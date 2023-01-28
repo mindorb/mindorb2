@@ -23,6 +23,22 @@
         border-color: black;
       "
     />
+    <div style="position: absolute; top: 50px; right: 50px; display:none;" id="updateDIV">
+    <input type="button" value="Delete" style="
+    z-index: 100;
+    border-radius: 0px solid;
+    border-color: black;;" id="updateDelete" /><input
+      type="text"
+      id="updateSelection"
+      onkeyup="updateSelection();"
+      maxlength="15"
+      style="
+        z-index: 100;
+        border-radius: 0px solid;
+        border-color: black;
+      "
+    />
+  </div>
     <script>
       window.onload = function () {
         document.getElementById("description").focus();
@@ -571,7 +587,12 @@ tube.applyMatrix4(matrix);
           document.getElementById("description").style.border = "3px solid";
           document.getElementById("description").style.borderColor = "red";
         }
+      }
+
+      function updateSelection() {
         if (updatingTextObject != null) {
+          let description = document.getElementById("updateSelection").value;
+          console.log("DESC:"+description);
           for (let i = 0; i < updatingTextObject.charactersMeshes.length; i++) {
             scene.remove(updatingTextObject.charactersMeshes[i]);
           }
@@ -582,6 +603,7 @@ tube.applyMatrix4(matrix);
           descriptions[updatingTextObject.index] = description;
           previousCheckIfTubeIsOnRightOrLeft[updatingTextObject.index] = null;
         }
+
       }
 
       function addSphere(hull) {
@@ -682,7 +704,7 @@ tube.applyMatrix4(matrix);
         "contextmenu",
         function (ev) {
           ev.preventDefault();
-          return;
+  
           hullSpheres.forEach((sphere) => (sphere.visible = false));
 
           const mouse = new THREE.Vector2();
@@ -700,14 +722,26 @@ tube.applyMatrix4(matrix);
             for (var i = 0; i < max; i++) {
               const intersection = intersects[i];
               const object = intersection.object;
+              let found = false;
               if (object instanceof THREE.Mesh) {
-                if (object.geometry.type == "TubeGeometry") {
-                  updatingTextObject = object;
-                  document.getElementById("description").value =
-                    object.description;
+                if ( (object.geometry.type == "SphereGeometry") && (object.material.color.getHex() == 0xaaaaff) ) {
+                  console.error(object);
+                  if (object.tube) {
+                  updatingTextObject = object.tube;
+                  document.getElementById("updateDIV").style.display = 'inline';
+                  document.getElementById("updateSelection").focus();
+                    
+                  document.getElementById("updateSelection").value =
+                    object.tube.description;
+                  }
+                  found = true;
                   break;
                 }
               }
+              if (!found) {
+                document.getElementById("updateDIV").style.display = 'none';
+              }
+
             }
           }
           hullSpheres.forEach((sphere) => (sphere.visible = true));
@@ -850,14 +884,17 @@ tube.applyMatrix4(matrix);
 
             normal2.copy(planeNormal);
 
-            secondAlignerObject.add(secondPlane);
+
+            
+
+
 
             var plane2 = new THREE.Plane().setFromNormalAndCoplanarPoint(
               normal2,
               secondPlane.position
             );
 
-            let repeat = false;
+            //scene.add(secondAlignerObject);
 
             let usedRayCaster = null;
             let done = false;
@@ -887,6 +924,7 @@ tube.applyMatrix4(matrix);
               } 
 
               data = checkPointVisibility(
+                plane2,
                 currentTubeDirection,
                 point,
                 end,
@@ -1046,6 +1084,7 @@ tube.applyMatrix4(matrix);
       }
 
       function checkPointVisibility(
+        plane2,
         currentTubeDirection,
         point,
         tubeEnd,
@@ -1055,6 +1094,9 @@ tube.applyMatrix4(matrix);
         points,
         counter
       ) {
+        if (plane2.distanceToPoint(point) <= 0) {
+          return { point: null, usedRaycaster: false }
+              }
         let cameraToPoint = new THREE.Vector3()
           .subVectors(point, camera.position)
           .normalize();
@@ -1120,6 +1162,7 @@ tube.applyMatrix4(matrix);
           }
           return { point: null, usedRaycaster: true }
         } else {
+
           return { point, usedRaycaster: false };
         }
        
