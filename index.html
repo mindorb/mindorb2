@@ -130,10 +130,12 @@
           const intersection = intersects[0];
           const object = intersection.object;
           if (object.visible == false) return;
+          
           if (
             object instanceof THREE.Mesh &&
             object.material.color.getHex() === 0xaaaaff
           ) {
+            if (event.shiftKey) {
             cameraPos.copy(controls.object.position);
             controls.enabled = false;
 
@@ -142,7 +144,7 @@
             isResizing = true;
             resizedObject = object;
             startingMousePosition = { x: event.clientX, y: event.clientY };
- 
+            }
           } else if (
             object instanceof THREE.Mesh &&
             object.material.color.getHex() === 0xffffff
@@ -151,7 +153,7 @@
 
             if (event.altKey) {
                 movingHull = object;
-            } else {
+            } else if (event.shiftKey) {
 
             resizedObject = object;
             if (!object.parentSphere.parentHull) {
@@ -182,7 +184,6 @@
       window.addEventListener("mousemove", (event) => {
         event.preventDefault();
         if (movingHull) {
-                console.log("Moving hull");
                 moveHull(movingHull);
                 return;
             }
@@ -213,8 +214,6 @@
             if (resizedObject.spheres) {
                 let maxParentSphereRadius = 9999;
                 for (let x = 0; x < resizedObject.spheres.length; x++) {
-                    console.log("SPHERES[x].parentHull");
-                    console.log(resizedObject.spheres[x].belongingHull);
                     if (resizedObject.spheres[x].belongingHull) {
                     if (getScaledRadius(resizedObject.spheres[x].belongingHull)<maxParentSphereRadius) {
                         maxParentSphereRadius = getScaledRadius(resizedObject.spheres[x].belongingHull);
@@ -222,7 +221,6 @@
                 }
                 }
 
-                    console.log(getScaledRadius(resizedObject)+"<"+maxParentSphereRadius);
                     if  ( (resizedObject.position.x==0) && (resizedObject.position.y == 0) && (resizedObject.position.z==0) ) {
                         if (getScaledRadius(resizedObject) < maxParentSphereRadius*6) return;
                     } else {
@@ -233,10 +231,6 @@
                 }
 
             } else {
-                console.log("GETSCALEDRADIUS");
-                console.log(getScaledRadius(resizedObject));
-                console.log("RESIZEDOBEJCT.PARENTSPHERE.BELONGINGHULL");
-                console.log(getScaledRadius(resizedObject.parentSphere.belongingHull)*2);
                 if (getScaledRadius(resizedObject)>getScaledRadius(resizedObject.parentSphere.belongingHull)) {
                     return;
                 }
@@ -246,8 +240,6 @@
        
 
 
-        console.log("resizedObject");
-        console.log(resizedObject);
         for (var i = 0; i < changedTexts.length; i++) {
         changedTexts[i] = true;
         }
@@ -363,7 +355,7 @@
             scene.add(tubeMesh);
 
             if (!bigSphere.spheres[i].belongingHull) {
-            console.log("NO BELONGGING HULLSPHERE"); 
+
             } else {
                 let hullSphere = bigSphere.spheres[i].belongingHull;
                 changePos(distanceBetweenPositions(smallSphere.position, bigSphere.spheres[i].position), hullSphere, bigSphere)
@@ -399,9 +391,6 @@ const moveHull  = (movingHull) => {
           if (object.uuid == movingHull.parentSphere.parentHull.uuid)  {
             
           
-          console.log("movingHull.parentSphere.tube_curve");
-          console.log(movingHull.parentSphere.tube_curve);
-
           let curve = new THREE.LineCurve3(movingHull.parentSphere.parentHull.position.clone(), intersection.point);
           tubeGeometry = new THREE.TubeGeometry(
           curve,
@@ -412,7 +401,6 @@ const moveHull  = (movingHull) => {
         );
         movingHull.parentSphere.position.copy(intersection.point);
         movingHull.position.copy(intersection.point);
-        console.log(movingHull.parentSphere.tube);
         scene.remove(movingHull.parentSphere.tube);
 
         var tubeMaterial = new THREE.MeshBasicMaterial({
@@ -523,8 +511,6 @@ const moveHull  = (movingHull) => {
 
           if (!hull.spheres) {
             hull.spheres = [sphere];
-            console.log("CREATED ");
-            console.log(sphere);
           } else {
             hull.spheres.push(sphere);
           }
@@ -611,7 +597,6 @@ const moveHull  = (movingHull) => {
 
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
-        console.log("INTERSECTS:"+intersects.length);
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const object = intersection.object;
@@ -700,7 +685,7 @@ const moveHull  = (movingHull) => {
 
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
           charactersMeshes.forEach((characterMesh, index) => {
-            var points = [];
+            let points = [];
             var center = curve.getPointAt(0.75);
             let start = curve.getPointAt(0);
             let end = curve.getPointAt(1);
@@ -751,10 +736,16 @@ const moveHull  = (movingHull) => {
             let data;
             let point;
             let counter = 0;
+            let raycastCount;
             
             while (done == false) {
-                let raycastCount = 0;
-            for (let i = 0; i <= 1; i += 1 / 75) {
+              raycastCount = 0;
+          
+              let divider = 1/15;
+              if (counter==1) {
+                  divider = 1/60;
+              }
+            for (let i = 0; i <= 1; i += divider ) {
               point = new THREE.Vector3();
               let angle = i * Math.PI * 2;
               point.x = center.x + radius * Math.cos(angle);
@@ -779,22 +770,24 @@ const moveHull  = (movingHull) => {
                 mode
               );
 
-              points = data.points;
-              if (data.usedRayCaster == true) raycastCount++;
+              if (data.point!=null) {
+                points.push(data.point);
+              }
+              if (data.usedRaycaster == true) raycastCount++;
             }
-
-            if (points.length == 0) {
+            if (points.length < 3) {
               counter++; 
             } else {
               done = true;
             }
 
-            if (data.raycastCount > 37) usedRayCaster = true;
+            if (data.raycastCount > points.length/2) usedRayCaster = true; else usedRayCaster = false;
 
-            if (counter==1) done = true;
-
+            if (counter==2) done = true;
+          // console.error("POINTS:LENGTH:"+points.length);
         }
 
+        //console.error("LEN:"+points.length);
             if (points.length == 0) {
                 return;
             }
@@ -986,26 +979,26 @@ const moveHull  = (movingHull) => {
             let distance = point.distanceTo(intersectionPoint);
             let intersectionPoint2 = intersects4[0].point;
             let distance2 = point.distanceTo(intersectionPoint2);
-            //console.log("D:" + distance);
 
             if (currentTubeDirection) {
               if (distance2 < 0.47) {
-                points.push(point);
+                return { point, usedRaycaster: true };
               } else if (distance < 0.47) {
-                points.push(point);
+                return { point, usedRaycaster: true };
               }
             } else {
               if (distance2 > 0.47) {
-                points.push(point);
+                return { point, usedRaycaster: true };
               } else if (distance > 0.47) {
-                points.push(point);
+                return { point, usedRaycaster: true };
               }
             }
           }
+          return { point: null, usedRaycaster: true }
         } else {
-          points.push(point);
+          return { point, usedRaycaster: false };
         }
-        return { points, usedRayCaster };
+       
       }
 
       function createCharacterMessages(text, curve, tube, startPosition, endPosition) {
@@ -1074,7 +1067,6 @@ const moveHull  = (movingHull) => {
 
       function KeyPress(e) {
         var evtobj = window.event ? event : e;
-        console.log(evtobj.keyCode);
         if (evtobj.keyCode == 17) {
           hullsVisible = !hullsVisible;
           for (var i = 0; i < hullSpheres.length; i++) {
