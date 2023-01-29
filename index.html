@@ -23,6 +23,18 @@
         border-color: black;
       "
     />
+    <input
+      type="checkbox"
+      id="showPlane"
+      style="
+        position: absolute;
+        top: 100px;
+        left: 50px;
+        z-index: 100;
+        border-radius: 0px solid;
+        border-color: black;
+      "
+    />
     <div style="position: absolute; top: 50px; right: 50px; display:none;" id="updateDIV">
     <input type="button" value="Delete" style="
     z-index: 100;
@@ -45,6 +57,7 @@
       };
       let texts = [];
       var curves = [];
+      var plane2 = null;
 
       let hullsVisible = true;
       let hullSpheres = [];
@@ -903,47 +916,13 @@ tube.applyMatrix4(matrix);
 
          
 
-            let tangent = curve.getTangentAt(0.75);
-            let normal = new THREE.Vector3()
-              .crossVectors(tangent, new THREE.Vector3(0, 1, 0))
-              .normalize();
-
-       
-            if (secondAlignerObject) scene.remove(secondAlignerObject);
-            secondAlignerObject = new THREE.Object3D();
-            secondAlignerObject.position.copy(end);
-            let secondPlaneGeometry = new THREE.PlaneGeometry(5, 5);
-            let secondPlaneMaterial = new THREE.MeshBasicMaterial({
-              color: 0xffff00,
-              side: THREE.DoubleSide,
-            });
-
-            let secondPlane = new THREE.Mesh(
-              secondPlaneGeometry,
-              secondPlaneMaterial
-            );
-
-            let normal2 = secondPlaneGeometry.faces[0].normal;
-            let cameraDirection = new THREE.Vector3()
-              .subVectors(camera.position, secondPlane.position)
-              .normalize();
-            let planeNormal = new THREE.Vector3()
-              .crossVectors(tangent, cameraDirection)
-              .normalize();
-
-            normal2.copy(planeNormal);
-
-
             
+              if (document.getElementById('showPlane').checked) {
 
-
-
-            var plane2 = new THREE.Plane().setFromNormalAndCoplanarPoint(
-              normal2,
-              secondPlane.position
-            );
-
-            //scene.add(secondAlignerObject);
+                if (secondAlignerObject) scene.remove(secondAlignerObject);
+              }
+   
+            plane2 = createPlane(description, scene, start, end);
 
             let usedRayCaster = null;
             let done = false;
@@ -960,17 +939,17 @@ tube.applyMatrix4(matrix);
                   divider = 1/30;
               }
             for (let x = 0; x <= 1; x += divider ) {
-              point = new THREE.Vector3();
               let angle = x * Math.PI * 2;
-              point.x = center.x + tube.sphere1Mesh.geometry.parameters.radius/2 * Math.cos(angle);
-              point.y = center.y + tube.sphere1Mesh.geometry.parameters.radius/2 * Math.sin(angle);
-              point.z = center.z;
 
+              point = new THREE.Vector3(center.x + tube.sphere1Mesh.geometry.parameters.radius/2 * Math.cos(angle),
+              center.y + tube.sphere1Mesh.geometry.parameters.radius/2 * Math.sin(angle), center.z
+              );
+            
               let mode = 0;
 
               if (usedRayCaster != null) {
                 if (usedRayCaster == false) mode = 1; else mode = 2;
-              } 
+              }
 
               data = checkPointVisibility(
                 plane2,
@@ -1143,9 +1122,30 @@ tube.applyMatrix4(matrix);
         points,
         counter
       ) {
-        if (plane2.distanceToPoint(point) <= 0) {
-          return { point: null, usedRaycaster: false }
-              }
+       
+        var normal = plane2.normal;
+        var origin = new THREE.Vector3(0, 0, 0);
+        var direction = new THREE.Vector3().subVectors(point, origin);
+
+        var dot2 = normal.dot(direction);
+        
+
+        if (!currentTubeDirection) {
+          
+          console.log(dot2);
+  if (dot2 <= 0) {
+    console.log("FALSE");
+    counter = 1;
+  } else {
+    return { point, usedRaycaster: false };
+  }
+} else {
+  console.log(dot2);
+  if (dot2 > 0) {
+    console.log("FALSE2");
+    counter = 1;
+  } 
+}
         let cameraToPoint = new THREE.Vector3()
           .subVectors(point, camera.position)
           .normalize();
@@ -1314,6 +1314,55 @@ tube.applyMatrix4(matrix);
             });
           }
         }
+      }
+
+      const createPlane = (description, scene, sphere1Position, sphere2Position) => {
+
+        var quaternion = new THREE.Quaternion();
+
+        quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(sphere2Position, sphere1Position).normalize());
+        var distance = sphere1Position.distanceTo(sphere2Position);
+
+        secondAlignerObject = new THREE.Object3D();
+        let secondPlaneGeometry = new THREE.PlaneGeometry(5, 5);
+        let secondPlaneMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        side: THREE.DoubleSide,
+        });
+
+        let secondPlane = new THREE.Mesh(
+        secondPlaneGeometry,
+        secondPlaneMaterial
+        );
+
+        secondPlane.rotateX(Math.PI / 2);
+        secondPlane.position.set(0, tubeGeometry.parameters.height / 2, 0);
+        secondAlignerObject.quaternion.copy(quaternion);
+        secondAlignerObject.add(secondPlane);
+
+        /** Third plane **/
+        let thirdPlaneGeometry = new THREE.PlaneGeometry(5, 5);
+        let thirdPlaneMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00,  side: THREE.DoubleSide });
+
+        let thirdPlaneMesh = new THREE.Mesh(thirdPlaneGeometry, thirdPlaneMaterial);
+
+        thirdPlaneMesh.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+        thirdPlaneMesh.position.copy(secondPlane.position);
+        secondAlignerObject.add(thirdPlaneMesh);
+        secondAlignerObject.position.copy(sphere1Position);
+        
+        if (document.getElementById('showPlane').checked) {
+
+        if ( (description=='123') || (description=='asd') ) {
+        scene.add(secondAlignerObject);
+        }
+      }
+
+        let thirdPlane = new THREE.Plane(thirdPlaneGeometry.vertices[0], thirdPlaneGeometry.vertices[1], thirdPlaneGeometry.vertices[2]);
+
+
+        return thirdPlane;
+
       }
 
       document.onkeydown = KeyPress;
