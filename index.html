@@ -94,7 +94,7 @@
       );
       camera.position.set(0, 0, 5);
 
-      const renderer = new THREE.WebGLRenderer();
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement);
       var textOrientation = new THREE.Object3D();
@@ -233,7 +233,7 @@
           originalRadius + mouseMovement.y * 0.01 + mouseMovement.x * 0.01;
 
         let isHullVisible = false;
-        let maxParentSphereRadius;
+        let maxChildSphereRadius;
         let increasing = prevNewRadius ? newRadius > prevNewRadius : true;
         prevNewRadius = newRadius;
         if (isResizing) {
@@ -244,39 +244,39 @@
           )
             return;
         } else if (recursiveResizing) {
-          if (newRadius > resizedObject.scale.x) {
-            maxParentSphereRadius = 9999;
-          } else {
-            maxParentSphereRadius = 0;
-          }
+          //if (increasing) {
+          maxChildSphereRadius = 0;
+          //} else {
+          //  maxChildSphereRadius = 0;
+          //}
           if (resizedObject.spheres) {
             for (let x = 0; x < resizedObject.spheres.length; x++) {
               if (resizedObject.spheres[x].belongingHull) {
-                if (increasing) {
-                  if (
-                    getScaledRadius(resizedObject.spheres[x].belongingHull) <
-                    maxParentSphereRadius
-                  ) {
-                    maxParentSphereRadius = getScaledRadius(
-                      resizedObject.spheres[x].belongingHull
-                    );
-                  }
-                } else {
+                // if (increasing) {
+                if (
+                  getScaledRadius(resizedObject.spheres[x].belongingHull) >
+                  maxChildSphereRadius
+                ) {
+                  maxChildSphereRadius = getScaledRadius(
+                    resizedObject.spheres[x].belongingHull
+                  );
+                }
+                /*} else {
                   if (
                     getScaledRadius(resizedObject.spheres[x].belongingHull) >
-                    maxParentSphereRadius
+                    maxChildSphereRadius
                   ) {
-                    maxParentSphereRadius = getScaledRadius(
+                    maxChildSphereRadius = getScaledRadius(
                       resizedObject.spheres[x].belongingHull
                     );
                   }
-                }
+                }*/
                 if (
                   resizedObject.position.x == 0 &&
                   resizedObject.position.y == 0 &&
                   resizedObject.position.z == 0
                 ) {
-                  maxParentSphereRadius = maxParentSphereRadius * 2;
+                  maxChildSphereRadius = maxChildSphereRadius;
                 }
               }
             }
@@ -289,37 +289,25 @@
 
         if (recursiveResizing) {
           let doReturnAfterCheck = false;
-          console.log("Check too largge");
           if (increasing) {
-            if (
-              resizedObject.parentSphere &&
-              resizedObject.parentSphere.parentHull
-            ) {
-              console.log(
-                getScaledRadius(resizedObject) +
-                  ">" +
-                  getScaledRadius(resizedObject.parentSphere.parentHull)
-              );
-              if (
-                getScaledRadius(resizedObject) >
-                getScaledRadius(resizedObject.parentSphere.parentHull) / 2
-              ) {
-                console.log("RETURN TOO LARGGE1" + maxParentSphereRadius);
+            if (resizedObject.parentSphere.parentHull) {
+              if (getScaledRadius(resizedObject) > maxChildSphereRadius) {
                 recursiveResizing = false;
                 lastRadius = newRadius;
                 return;
               }
             } else {
               console.log(getScaledRadius(resizedObject) + ">2");
-
-              /*if (getScaledRadius(resizedObject) > maxParentSphereRadius) {
-                console.log("RETURN TOO LARGGE3" + maxParentSphereRadius);
-                recursiveResizing = false;
-                return;
-              }*/
             }
           }
           if (!increasing) {
+            console.log("MAX:" + maxChildSphereRadius);
+            console.log("getScaledRadiu:" + getScaledRadius(resizedObject));
+            if (getScaledRadius(resizedObject) * 2 <= maxChildSphereRadius) {
+              recursiveResizing = false;
+              return;
+            }
+
             console.log("Check to small1");
             if (
               resizedObject.parentSphere &&
@@ -331,7 +319,7 @@
               ) {
                 recursiveResizing = false;
                 lastRadius = newRadius;
-                console.log("RETURN TOO SMALL2" + maxParentSphereRadius);
+                console.log("RETURN TOO SMALL2" + maxChildSphereRadius);
                 resizedObject.scale.x = newRadius;
                 resizedObject.scale.y = newRadius;
                 resizedObject.scale.z = newRadius;
@@ -339,26 +327,24 @@
               }
             } else {
               console.log("RESIZING MAIN SPHERE");
-              console.log(maxParentSphereRadius);
+              console.log(maxChildSphereRadius);
               if (
                 getScaledRadius(resizedObject) < 2 ||
-                getScaledRadius(resizedObject) < maxParentSphereRadius
+                getScaledRadius(resizedObject) * 2 < maxChildSphereRadius
               ) {
                 doReturnAfterCheck = true;
+                recursiveResizing = false;
+                return;
               }
             }
           }
           console.log(newRadius + "<= " + getScaledRadius(resizedObject));
           if (!increasing) {
             console.log("Check to small2");
-            if (
-              getScaledRadius(resizedObject) <= maxParentSphereRadius &&
-              maxParentSphereRadius != 9999 &&
-              resizedObject.parentHull != null
-            ) {
+            if (getScaledRadius(resizedObject) <= maxChildSphereRadius) {
               recursiveResizing = false;
               lastRadius = newRadius;
-              console.log("RETURN TOO SMALL1" + maxParentSphereRadius);
+              console.log("RETURN TOO SMALL1" + maxChildSphereRadius);
               return;
             }
           }
