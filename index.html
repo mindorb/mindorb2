@@ -61,6 +61,8 @@
       var curves = [];
       var plane2 = null;
 
+      var prevNewRadius = 0;
+
       let hullsVisible = true;
       let hullSpheres = [];
       let tubes = [];
@@ -170,6 +172,7 @@
               controls.enabled = false;
 
               isResizing = true;
+              charactersData = [];
               resizedObject = object;
               startingMousePosition = { x: event.clientX, y: event.clientY };
             }
@@ -231,7 +234,8 @@
 
         let isHullVisible = false;
         let maxParentSphereRadius;
-
+        let increasing = prevNewRadius ? newRadius > prevNewRadius : true;
+        prevNewRadius = newRadius;
         if (isResizing) {
           if (!resizedObject.parentHull) return;
           if (
@@ -248,7 +252,7 @@
           if (resizedObject.spheres) {
             for (let x = 0; x < resizedObject.spheres.length; x++) {
               if (resizedObject.spheres[x].belongingHull) {
-                if (newRadius > resizedObject.scale.x) {
+                if (increasing) {
                   if (
                     getScaledRadius(resizedObject.spheres[x].belongingHull) <
                     maxParentSphereRadius
@@ -279,18 +283,14 @@
           }
         }
 
-        lastRadius = newRadius;
-
         for (var i = 0; i < changedTexts.length; i++) {
           changedTexts[i] = true;
         }
-        resizedObject.scale.x = newRadius;
-        resizedObject.scale.y = newRadius;
-        resizedObject.scale.z = newRadius;
 
         if (recursiveResizing) {
+          let doReturnAfterCheck = false;
           console.log("Check too largge");
-          if (newRadius >= getScaledRadius(resizedObject)) {
+          if (increasing) {
             if (
               resizedObject.parentSphere &&
               resizedObject.parentSphere.parentHull
@@ -304,14 +304,22 @@
                 getScaledRadius(resizedObject) >
                 getScaledRadius(resizedObject.parentSphere.parentHull) / 2
               ) {
-                console.log("RETURN TOO LARGGE" + maxParentSphereRadius);
+                console.log("RETURN TOO LARGGE1" + maxParentSphereRadius);
                 recursiveResizing = false;
                 lastRadius = newRadius;
                 return;
               }
+            } else {
+              console.log(getScaledRadius(resizedObject) + ">2");
+
+              /*if (getScaledRadius(resizedObject) > maxParentSphereRadius) {
+                console.log("RETURN TOO LARGGE3" + maxParentSphereRadius);
+                recursiveResizing = false;
+                return;
+              }*/
             }
           }
-          if (newRadius <= resizedObject.scale.x) {
+          if (!increasing) {
             console.log("Check to small1");
             if (
               resizedObject.parentSphere &&
@@ -324,15 +332,29 @@
                 recursiveResizing = false;
                 lastRadius = newRadius;
                 console.log("RETURN TOO SMALL2" + maxParentSphereRadius);
+                resizedObject.scale.x = newRadius;
+                resizedObject.scale.y = newRadius;
+                resizedObject.scale.z = newRadius;
+                return;
+              }
+            } else {
+              console.log("RESIZING MAIN SPHERE");
+              console.log(maxParentSphereRadius);
+              if (
+                getScaledRadius(resizedObject) < 2 ||
+                getScaledRadius(resizedObject) < maxParentSphereRadius
+              ) {
+                doReturnAfterCheck = true;
               }
             }
           }
-          console.log(newRadius + "<= " + resizedObject.scale.x);
-          if (newRadius <= getScaledRadius(resizedObject)) {
+          console.log(newRadius + "<= " + getScaledRadius(resizedObject));
+          if (!increasing) {
             console.log("Check to small2");
             if (
               getScaledRadius(resizedObject) <= maxParentSphereRadius &&
-              maxParentSphereRadius != 9999
+              maxParentSphereRadius != 9999 &&
+              resizedObject.parentHull != null
             ) {
               recursiveResizing = false;
               lastRadius = newRadius;
@@ -340,6 +362,14 @@
               return;
             }
           }
+          if (doReturnAfterCheck) return;
+          resizedObject.scale.x = newRadius;
+          resizedObject.scale.y = newRadius;
+          resizedObject.scale.z = newRadius;
+        } else {
+          resizedObject.scale.x = newRadius;
+          resizedObject.scale.y = newRadius;
+          resizedObject.scale.z = newRadius;
         }
 
         if (
