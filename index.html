@@ -125,7 +125,7 @@
         if (sphere.parentHull == null) {
           hullRadius = getScaledRadius(sphere) * 2; // Hull radius is twice the size of the sphere radius
         } else {
-          hullRadius = getScaledRadius(sphere) * 4;
+          hullRadius = getScaledRadius(sphere) * 1;
         }
         const hullGeometry = new THREE.SphereGeometry(1, 32, 32);
         const hullMaterial = new THREE.MeshBasicMaterial({
@@ -365,6 +365,8 @@
             }
 
             console.log(newRadius + "<= " + getScaledRadius(resizedObject));
+
+            //console.log("CARRYING THROUGH RESIZEDOBJECT = NEW RRADIUDS");
           }
 
           if (doit) {
@@ -451,12 +453,12 @@
         let hull = resizedObject.parentSphere.parentHull;
 
         while (hull) {
-          if (hull.scale.x < resizedObject.scale.x) {
-            hull.scale.x = resizedObject.scale.x;
-            hull.scale.y = resizedObject.scale.y;
-            hull.scale.z = resizedObject.scale.z;
+          if (getScaledRadius(hull) < getScaledRadius(resizedObject)) {
+            hull.scale.x = resizedObject.scale.x; /// 2;
+            hull.scale.y = resizedObject.scale.y; /// 2;
+            hull.scale.z = resizedObject.scale.z; // / 2;
           }
-          changeSpheres(hull, hull.scale.x);
+          changeSpheres(hull, getScaledRadius(hull));
 
           if (hull.parentSphere && hull.parentSphere.parentHull) {
             hull = hull.parentSphere.parentHull;
@@ -740,18 +742,14 @@
         const intersects = raycaster.intersectObject(hull);
         if (intersects.length > 0) {
           const intersection = intersects[0];
-
-          const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+          const sphereRadius = hull.scale.x / 8; // New sphere radius is half the size of the hull
+          const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
           const sphereMaterial = new THREE.MeshBasicMaterial({
             color: 0xaaaaff,
             transparent: true,
             opacity: 0.5,
           });
           const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-
-          sphere.scale.x = getScaledRadius(hull) / 16;
-          sphere.scale.y = getScaledRadius(hull) / 16;
-          sphere.scale.z = getScaledRadius(hull) / 16;
 
           // create line between inner and outer sphere
 
@@ -786,7 +784,7 @@
 
         //        tubeGeometry = new THREE.TubeGeometry(curve, 20, 0.1, 8, false);
         tubeGeometry = new THREE.CylinderGeometry(
-          sphereRadius / 16,
+          sphereRadius / 4,
           getScaledRadius(sphere1) / 4,
           curve.getLength(),
           32
@@ -1222,10 +1220,11 @@
       }
 
       function getScaledRadius(mesh) {
-        let scale = mesh.scale;
+        /*let scale = mesh.scale;
         let unscaledRadius = mesh.geometry.boundingSphere.radius;
-        let scaledRadius = Math.max(scale.x, scale.y, scale.z) * unscaledRadius;
-        return scaledRadius;
+        let scaledRadius = Math.max(scale.x, scale.y, scale.z) * unscaledRadius; */
+        console.log(mesh.scale.x);
+        return mesh.scale.x;
       }
 
       function reverseString(str) {
