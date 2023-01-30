@@ -78,6 +78,8 @@
       var movingHull = null;
       var changedTexts = [];
       var charactersData = [];
+      var prevNewRadiuses = [];
+      var currentUUID;
 
       var originalRadius = 0.2;
       var lastRadius;
@@ -125,13 +127,17 @@
         } else {
           hullRadius = getScaledRadius(sphere) * 4;
         }
-        const hullGeometry = new THREE.SphereGeometry(hullRadius, 32, 32);
+        const hullGeometry = new THREE.SphereGeometry(1, 32, 32);
         const hullMaterial = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
           opacity: 0.5,
         });
         const hull = new THREE.Mesh(hullGeometry, hullMaterial);
+
+        hull.scale.x = hullRadius;
+        hull.scale.y = hullRadius;
+        hull.scale.z = hullRadius;
 
         hull.position.copy(sphere.position);
         hull.parentSphere = sphere;
@@ -186,6 +192,24 @@
             } else if (event.shiftKey) {
               controls.enabled = false;
               resizedObject = object;
+              originalRadius = getScaledRadius(object) / 2;
+              if (object.parentSphere.parentHull) {
+                if (
+                  originalRadius / 2 >
+                  getScaledRadius(object.parentSphere.parentHull)
+                ) {
+                  originalRadius = getScaledRadius(
+                    originalRadius.parentSphere.parentHull
+                  );
+                }
+              }
+              currentUUID = object.uuid;
+              if (!prevNewRadiuses[object.uuid]) {
+                prevNewRadiuses[object.uuid] = originalRadius;
+                prevNewRadius = originalRadius;
+              } else {
+                prevNewRadius = prevNewRadiuses[object.uuid];
+              }
               if (!object.parentSphere.parentHull) {
                 originalRadius = object.geometry.parameters.radius / 2;
                 lastRadius = object.geometry.parameters.radius / 2;
@@ -235,14 +259,15 @@
         let isHullVisible = false;
         let maxChildSphereRadius;
         let increasing = prevNewRadius ? newRadius > prevNewRadius : true;
-        prevNewRadius = newRadius;
+
         if (isResizing) {
           if (!resizedObject.parentHull) return;
           if (
             newRadius >
             resizedObject.parentHull.geometry.parameters.radius / 2
           )
-            return;
+            console.log("XXX");
+          return;
         } else if (recursiveResizing) {
           //if (increasing) {
           maxChildSphereRadius = 0;
@@ -252,7 +277,6 @@
           if (resizedObject.spheres) {
             for (let x = 0; x < resizedObject.spheres.length; x++) {
               if (resizedObject.spheres[x].belongingHull) {
-                // if (increasing) {
                 if (
                   getScaledRadius(resizedObject.spheres[x].belongingHull) >
                   maxChildSphereRadius
@@ -261,16 +285,7 @@
                     resizedObject.spheres[x].belongingHull
                   );
                 }
-                /*} else {
-                  if (
-                    getScaledRadius(resizedObject.spheres[x].belongingHull) >
-                    maxChildSphereRadius
-                  ) {
-                    maxChildSphereRadius = getScaledRadius(
-                      resizedObject.spheres[x].belongingHull
-                    );
-                  }
-                }*/
+
                 if (
                   resizedObject.position.x == 0 &&
                   resizedObject.position.y == 0 &&
@@ -293,6 +308,7 @@
             console.log("getScaledRadiu:" + getScaledRadius(resizedObject));
             if (getScaledRadius(resizedObject) * 2 <= maxChildSphereRadius) {
               recursiveResizing = false;
+              console.log("YY");
               return;
             }
 
@@ -308,6 +324,7 @@
                 resizedObject.scale.x = newRadius;
                 resizedObject.scale.y = newRadius;
                 resizedObject.scale.z = newRadius;
+                console.log("ZZZ");
                 return;
               }
             } else {
@@ -315,52 +332,36 @@
               console.log(maxChildSphereRadius);
               if (
                 getScaledRadius(resizedObject) < 2 ||
-                getScaledRadius(resizedObject) / 8 < maxChildSphereRadius
+                getScaledRadius(resizedObject) / 2 < maxChildSphereRadius
               ) {
                 recursiveResizing = false;
+                console.log("WWW");
                 return;
               }
             }
           }
 
-          if (resizedObject.parentSphere.parentHull) {
-            if (
-              getScaledRadius(resizedObject) >
-              getScaledRadius(resizedObject.parentSphere.parentHull)
-            ) {
-              recursiveResizing = false;
-              lastRadius = newRadius;
-              return;
-            }
-          }
-
-          if (increasing) {
+          /*if (increasing) {
             if (resizedObject.parentSphere.parentHull) {
               if (getScaledRadius(resizedObject) > maxChildSphereRadius) {
                 recursiveResizing = false;
                 lastRadius = newRadius;
+                console.log("VVV");
                 return;
               }
             } else {
               console.log(getScaledRadius(resizedObject) + ">2");
             }
-          }
+          }*/
 
-          console.log(newRadius + "<= " + getScaledRadius(resizedObject));
-          if (!increasing) {
-            console.log("Check to small2");
-            if (getScaledRadius(resizedObject) <= maxChildSphereRadius) {
-              recursiveResizing = false;
-              lastRadius = newRadius;
-              console.log("RETURN TOO SMALL1" + maxChildSphereRadius);
-              return;
-            }
-          }
-
+          prevNewRadius = newRadius;
+          prevNewRadiuses[currentUUID] = newRadius;
           resizedObject.scale.x = newRadius;
           resizedObject.scale.y = newRadius;
           resizedObject.scale.z = newRadius;
         } else {
+          prevNewRadius = newRadius;
+          prevNewRadiuses[currentUUID] = newRadius;
           resizedObject.scale.x = newRadius;
           resizedObject.scale.y = newRadius;
           resizedObject.scale.z = newRadius;
@@ -371,7 +372,7 @@
           resizedObject.position.y == 0 &&
           resizedObject.position.z == 0
         ) {
-          changeSpheres(resizedObject, newRadius * 2, false);
+          changeSpheres(resizedObject, newRadius, false);
         } else {
           changeSpheres(resizedObject, newRadius, false);
         }
@@ -429,15 +430,9 @@
 
           while (hull) {
             if (getScaledRadius(hull) < getScaledRadius(resizedObject) * 2) {
-              if (!hull.parentSphere.parentHull) {
-                hull.scale.x = resizedObject.scale.x; /// 2;
-                hull.scale.y = resizedObject.scale.y; /// 2;
-                hull.scale.z = resizedObject.scale.z; // / 2;
-              } else {
-                hull.scale.x = resizedObject.scale.x * 2;
-                hull.scale.y = resizedObject.scale.y * 2;
-                hull.scale.z = resizedObject.scale.z * 2;
-              }
+              hull.scale.x = resizedObject.scale.x;
+              hull.scale.y = resizedObject.scale.y;
+              hull.scale.z = resizedObject.scale.z;
             }
             changeSpheres(hull, getScaledRadius(hull));
 
@@ -447,6 +442,7 @@
               hull = null;
             }
           }
+          if (checkTooLarge(resizedObject)) return;
         }
       });
 
@@ -705,7 +701,7 @@
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const sphereRadius = getScaledRadius(hull) / 8; // New sphere radius is half the size of the hull
-          const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+          const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
           const sphereMaterial = new THREE.MeshBasicMaterial({
             color: 0xaaaaff,
             transparent: true,
@@ -714,6 +710,10 @@
           const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
 
           // create line between inner and outer sphere
+
+          sphere.scale.x = sphereRadius;
+          sphere.scale.y = sphereRadius;
+          sphere.scale.z = sphereRadius;
 
           sphere.position.copy(intersection.point);
           sphere.parentHull = hull;
@@ -1163,6 +1163,25 @@
         }
       };
 
+      function checkTooLarge(resizedObject) {
+        console.log("CHECKTOOLARGE");
+        console.log(resizedObject);
+        if (resizedObject.parentSphere.parentHull) {
+          console.log("RESIZEDOBJECT>MAXCHILDSPHERERADIUS");
+          let parentRadius =
+            getScaledRadius(resizedObject.parentSphere.parentHull) / 2;
+          console.log(getScaledRadius(resizedObject));
+          console.log(parentRadius);
+          if (getScaledRadius(resizedObject) * 2 > parentRadius) {
+            console.log("SETTING RESIZEDOBJECT TO " + parentRadius);
+            return true;
+          }
+        } else {
+          console.log("ERROR NO RADIUS");
+        }
+        return false;
+      }
+
       function getNextPoint(reference, startPosition, endPositon) {
         let tubeDirection = new THREE.Vector3()
           .subVectors(endPosition, startPosition)
@@ -1181,9 +1200,9 @@
       }
 
       function getScaledRadius(mesh) {
-        let scale = mesh.scale;
-        let unscaledRadius = mesh.geometry.boundingSphere.radius;
-        let scaledRadius = Math.max(scale.x, scale.y, scale.z) * unscaledRadius;
+        /*let scale = mesh.scale;
+        let unscaledRadius = mesh.geometry.boundingSphere.radius;*/
+        let scaledRadius = Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z); // * unscaledRadius;
         return scaledRadius;
       }
 
