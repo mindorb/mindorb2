@@ -27,7 +27,7 @@ class UndoManager {
         this.pushState({ type: "resize", id, size });
     }
 
-    deleteItem(id, object) {
-        this.pushState({ type: "delete", id, object });
+    deleteItem(id, objects) {
+        this.pushState({ type: "delete", id, objects });
     }
 }

@@ -89,8 +89,11 @@
         console.log("UPDATEUI called");
         console.error(state);
 
-        if (state.type == "delete") {
-          scene.add(state.object);
+        if (state.type == "delete") 
+        {
+          for (var i = 0; i < state.objects.length; i++) {
+          scene.add(state.objects[i]);
+          }
         }
       }
 
@@ -882,12 +885,13 @@
 
       function deleteSphere() {
         console.log("UNDO MANAGER WITH DELETEITEM CALLED");
-        undoManager.deleteItem(updatingTextObject.uuid, updatingTextObject);
-        deleteSphereSub(updatingTextObject.uuid);
+
+        deletedItems = deleteSphereSub(updatingTextObject.uuid, []);
+        undoManager.deleteItem(updatingTextObject.uuid, deletedItems);
         document.getElementById("updateDIV").style.display = "none";
       }
 
-      function deleteSphereSub(uuid) {
+      function deleteSphereSub(uuid, deletedItems) {
         for (var i = 0; i < tubes.length; i++) {
           let tube = tubes[i];
           if (tube.uuid == uuid) {
@@ -898,11 +902,15 @@
             let charactersMeshes = texts[i];
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
+              deletedItems.push(charactersMeshes[z]);
             }
             texts.splice(i, 1);
             previousCheckIfTubeIsOnRightOrLeft.splice(i, 1);
             scene.remove(tube.sphere2Mesh);
             scene.remove(tube);
+
+              deletedItems.push(tube.sphere2Mesh);
+              deletedItems.push(tube);
 
             if (tube.sphere2Mesh.belongingHull) {
               if (tube.sphere2Mesh.belongingHull.spheres) {
@@ -916,17 +924,20 @@
                       tube.sphere2Mesh.belongingHull.spheres[z].tube.uuid
                   );
 
-                  deleteSphereSub(
-                    tube.sphere2Mesh.belongingHull.spheres[z].tube.uuid
+                  deletedItems = deleteSphereSub(
+                    tube.sphere2Mesh.belongingHull.spheres[z].tube.uuid, deletedItems
                   );
                 }
               }
               scene.remove(tube.sphere2Mesh.belongingHull);
+              deletedItems.push(tube.sphere2Mesh.belongingHull);
+              
             }
 
             break;
           }
         }
+        return deletedItems;
       }
 
       window.addEventListener("click", () => {
