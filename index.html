@@ -7,6 +7,7 @@
     <title>Document</title>
     <script src="three.min.js"></script>
     <script src="OrbitControls.js"></script>
+    <script src="UndoManager.js"></script>
   </head>
   <body>
     <input
@@ -84,6 +85,18 @@
       var originalRadius = 0.2;
       var lastRadius;
 
+      function updateUI(state) {
+        console.log("UPDATEUI called");
+        console.error(state);
+
+        if (state.type == "delete") {
+          scene.add(state.object);
+        }
+      }
+
+      // Example of how to initialize and use the UndoManager class
+      const undoManager = new UndoManager(updateUI);
+
       loader.load("font.json", function (response) {
         font = response;
       });
@@ -145,6 +158,7 @@
         hullSpheres.push(hull);
         scene.add(hull);
         hulls.push(hull);
+        return hull.uuid;
       };
 
       const MIN_RADIUS = 0.5; // Minimum allowed radius of the sphere
@@ -394,8 +408,12 @@
             color: 0xff0000,
             transparent: false,
           });
+          let originalDescription = resizedObject.tube.description;
+          let originalCharactersMeshes = resizedObject.tube.charactersMeshes;
           scene.remove(resizedObject.tube);
           var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+          tube.description = originalDescription;
+          tube.charactersMeshes = originalCharactersMeshes;
           // Position and rotate the cylinder to match the curve
           var quaternion = new THREE.Quaternion();
           quaternion.setFromUnitVectors(
@@ -476,6 +494,9 @@
             bigSphere.position.z + newRadius * Math.cos(theta)
           );
 
+          let originalDescription = bigSphere.spheres[i].tube.description;
+          let originalCharactersMeshes =
+            bigSphere.spheres[i].tube.charactersMeshes;
           scene.remove(bigSphere.spheres[i].tube);
 
           let start = bigSphere.position;
@@ -494,6 +515,8 @@
             transparent: false,
           });
           var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+          tube.description = originalDescription;
+          tube.charactersMeshes = originalCharactersMeshes;
 
           var quaternion = new THREE.Quaternion();
           quaternion.setFromUnitVectors(
@@ -575,6 +598,10 @@
 
               let originalPosition = movingHull.parentSphere.position.clone();
               movingHull.parentSphere.position.copy(intersection.point);
+              let originalDescription =
+                movingHull.parentSphere.tube.description;
+              let originalCharactersMeshes =
+                movingHull.parentSphere.tube.charactersMeshes;
               movingHull.position.copy(intersection.point);
               scene.remove(movingHull.parentSphere.tube);
 
@@ -585,6 +612,8 @@
               });
 
               var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+              tube.description = originalDescription;
+              tube.charactersMeshes = originalCharactersMeshes;
               // Position and rotate the cylinder to match the curve
               var quaternion = new THREE.Quaternion();
               quaternion.setFromUnitVectors(
@@ -677,6 +706,8 @@
       function updateSelection() {
         if (updatingTextObject != null) {
           let description = document.getElementById("updateSelection").value;
+          undoManager.changeItemText(updatingTextObject.uuid, description);
+
           console.log("DESC:" + description);
           for (let i = 0; i < updatingTextObject.charactersMeshes.length; i++) {
             scene.remove(updatingTextObject.charactersMeshes[i]);
@@ -736,7 +767,9 @@
           } else {
             hull.spheres.push(sphere);
           }
+          return hull.uuid;
         }
+        return "";
       }
 
       function addText(description, sphere1, sphere2, sphereRadius) {
@@ -848,6 +881,8 @@
       );
 
       function deleteSphere() {
+        console.log("UNDO MANAGER WITH DELETEITEM CALLED");
+        undoManager.deleteItem(updatingTextObject.uuid, updatingTextObject);
         deleteSphereSub(updatingTextObject.uuid);
         document.getElementById("updateDIV").style.display = "none";
       }
@@ -894,7 +929,7 @@
         }
       }
 
-      window.addEventListener("dblclick", () => {
+      window.addEventListener("click", () => {
         const mouse = new THREE.Vector2();
         mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
         mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
@@ -910,14 +945,22 @@
             object instanceof THREE.Mesh &&
             object.material.color.getHex() === 0xaaaaff
           ) {
-            addHullToSphere(object);
+            let hullID = addHullToSphere(object);
+            undoManager.addItem(hullID, "", "hull");
           } else {
             if (document.getElementById("description").value == "") {
               document.getElementById("description").focus();
               document.getElementById("description").style.border = "3px solid";
               document.getElementById("description").style.borderColor = "red";
             } else {
-              addSphere(object);
+              let sphereID = addSphere(object);
+              if (sphereID != "") {
+                undoManager.addItem(
+                  sphereID,
+                  document.getElementById("description").value,
+                  "sphereandtube"
+                );
+              }
               document.getElementById("description").value = "";
             }
           }
@@ -1397,31 +1440,7 @@
             hullSpheres[i].visible = hullsVisible;
           }
         } else if (evtobj.keyCode == 90 && evtobj.ctrlKey) {
-          let i = texts.length - 1;
-          let myCharactersMeshes = texts[i];
-          let tubeGeometry = tubeGeometries[i];
-          let tube = tubes[i];
-          let description = descriptions[i];
-          if (tube) {
-            let sphere1Mesh = tube.sphere1Mesh;
-            let sphere2Mesh = tube.sphere2Mesh;
-            scene.remove(sphere2Mesh);
-            scene.remove(tube);
-          }
-
-          i++;
-          curves = curves.splice(i, 1);
-          texts = texts.splice(i, 1);
-          tubeGeometries = tubeGeometries.splice(i, 1);
-          tubes = tubes.splice(i, 1);
-          descriptions = descriptions.splice(i, 1);
-          previousCheckIfTubeIsOnRightOrLeft =
-            previousCheckIfTubeIsOnRightOrLeft.splice(i, 1);
-          if (myCharactersMeshes) {
-            myCharactersMeshes.forEach(function (characterMesh, index) {
-              scene.remove(characterMesh);
-            });
-          }
+          undoManager.undo(); // undoes the last change text action
         }
       }
 
