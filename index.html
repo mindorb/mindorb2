@@ -1080,12 +1080,13 @@
               for (let x = 0; x <= 1; x += divider) {
                 let angle = x * Math.PI * 2;
 
+                let scaledSphereRadius = getScaledRadius(tube.sphere1Mesh); 
                 point = new THREE.Vector3(
                   center.x +
-                    (tube.sphere1Mesh.geometry.parameters.radius / 2) *
+                    (scaledSphereRadius / 2) *
                       Math.cos(angle),
                   center.y +
-                    (tube.sphere1Mesh.geometry.parameters.radius / 2) *
+                    (scaledSphereRadius / 2) *
                       Math.sin(angle),
                   center.z
                 );
