@@ -60,17 +60,20 @@
       };
       let texts = [];
       var curves = [];
+      let tubes = [];
+      let descriptions = [];
+      
+      
       var plane2 = null;
 
       var prevNewRadius = 0;
 
       let hullsVisible = true;
       let hullSpheres = [];
-      let tubes = [];
-      let descriptions = [];
+      
       let selectedSphere = null;
 
-      let tubeGeometries = [];
+      //let tubeGeometries = [];
       let updatingTextObject = null;
       let cameraPos = new THREE.Vector3();
       var font;
@@ -83,8 +86,7 @@
       var currentUUID;
 
       var originalRadius = 0.2;
-      var lastRadius;
-
+      
       function updateUI(state) {
         console.log("UPDATEUI called");
         console.error(state);
@@ -209,17 +211,9 @@
             } else if (event.shiftKey) {
               controls.enabled = false;
               resizedObject = object;
-              originalRadius = getScaledRadius(object) / 2;
-              if (object.parentSphere.parentHull) {
-                if (
-                  originalRadius / 2 >
-                  getScaledRadius(object.parentSphere.parentHull)
-                ) {
-                  originalRadius = getScaledRadius(
-                    originalRadius.parentSphere.parentHull
-                  );
-                }
-              }
+              originalRadius = getScaledRadius(object);
+             
+              console.log("originalRadiu:"+originalRadius);
               currentUUID = object.uuid;
               if (!prevNewRadiuses[object.uuid]) {
                 prevNewRadiuses[object.uuid] = originalRadius;
@@ -227,14 +221,8 @@
               } else {
                 prevNewRadius = prevNewRadiuses[object.uuid];
               }
-              if (!object.parentSphere.parentHull) {
-                originalRadius = object.geometry.parameters.radius / 2;
-                lastRadius = object.geometry.parameters.radius / 2;
-              } else {
-                originalRadius = object.geometry.parameters.radius;
-                lastRadius = object.geometry.parameters.radius;
-              }
-              startingMousePosition = { x: event.clientX, y: event.clientY };
+                //originalRadius = object.geometry.parameters.radius;
+                startingMousePosition = { x: event.clientX, y: event.clientY };
               recursiveResizing = true;
             }
           }
@@ -275,7 +263,9 @@
 
         let isHullVisible = false;
         let maxChildSphereRadius;
-        let increasing = prevNewRadius ? newRadius > prevNewRadius : true;
+        console.log("newRadius:"+newRadius);
+        console.log("PREV:"+prevNewRadius);
+        let increasing = newRadius > prevNewRadius ? true : false;
 
         if (isResizing) {
           if (!resizedObject.parentHull) return;
@@ -303,13 +293,7 @@
                   );
                 }
 
-                if (
-                  resizedObject.position.x == 0 &&
-                  resizedObject.position.y == 0 &&
-                  resizedObject.position.z == 0
-                ) {
-                  maxChildSphereRadius = maxChildSphereRadius;
-                }
+           
               }
             }
           }
@@ -323,20 +307,16 @@
           if (!increasing) {
             console.log("MAX:" + maxChildSphereRadius);
             console.log("getScaledRadiu:" + getScaledRadius(resizedObject));
-            if (getScaledRadius(resizedObject) * 2 <= maxChildSphereRadius) {
+            if (newRadius * 2 <= maxChildSphereRadius) {
               recursiveResizing = false;
               console.log("YY");
               return;
             }
 
             console.log("Check to small1");
-            if (
-              resizedObject.parentSphere &&
-              resizedObject.parentSphere.parentHull
-            ) {
-              if (getScaledRadius(resizedObject) / 2 < maxChildSphereRadius) {
+          
+              if (newRadius  < maxChildSphereRadius) {
                 recursiveResizing = false;
-                lastRadius = newRadius;
                 console.log("RETURN TOO SMALL2" + maxChildSphereRadius);
                 resizedObject.scale.x = newRadius;
                 resizedObject.scale.y = newRadius;
@@ -344,23 +324,19 @@
                 console.log("ZZZ");
                 return;
               }
-            } else {
-              console.log("RESIZING MAIN SPHERE");
-              console.log(maxChildSphereRadius);
-              if (
-                getScaledRadius(resizedObject) < 2 ||
-                getScaledRadius(resizedObject) / 2 < maxChildSphereRadius
-              ) {
+              console.log("increasing:"+increasing);
+              console.log(newRadius/2+"<!!!"+getScaledRadius(resizedObject.parentSphere));
+              if (newRadius / 2 < getScaledRadius(resizedObject.parentSphere)) {
+                console.log("VVV");
                 recursiveResizing = false;
-                console.log("WWW");
                 return;
               }
-            }
-          }
 
-          /*if (increasing) {
+
+          } else {
+
             if (resizedObject.parentSphere.parentHull) {
-              if (getScaledRadius(resizedObject) > maxChildSphereRadius) {
+              if (getScaledRadius(resizedObject) > resizedObject.parentSphere.parentHull) {
                 recursiveResizing = false;
                 lastRadius = newRadius;
                 console.log("VVV");
@@ -369,10 +345,11 @@
             } else {
               console.log(getScaledRadius(resizedObject) + ">2");
             }
-          }*/
+          }
 
           prevNewRadius = newRadius;
           prevNewRadiuses[currentUUID] = newRadius;
+          console.log("SCALED = "+newRadius);
           resizedObject.scale.x = newRadius;
           resizedObject.scale.y = newRadius;
           resizedObject.scale.z = newRadius;
@@ -827,7 +804,7 @@
         scene.add(textOrientation);
 
         tubes.push(tube);
-        tubeGeometries.push(tubeGeometry);
+        //tubeGeometries.push(tubeGeometry);
         return tube;
       }
       window.addEventListener(
@@ -992,7 +969,7 @@
         var counter = 0;
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
-          let tubeGeometry = tubeGeometries[i];
+//          let tubeGeometry = tubeGeometries[i];
           var tube = tubes[i];
           let description = descriptions[i];
           var curve = curves[i];
@@ -1218,6 +1195,9 @@
         }
       };
 
+      
+      animate();
+
       function checkTooLarge(resizedObject) {
         console.log("CHECKTOOLARGE");
         console.log(resizedObject);
@@ -1442,7 +1422,6 @@
           return false;
         }
       }
-      animate();
 
       function KeyPress(e) {
         var evtobj = window.event ? event : e;
