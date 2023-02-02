@@ -94,7 +94,18 @@
         if (state.type == "delete") 
         {
           for (var i = 0; i < state.objects.length; i++) {
-          scene.add(state.objects[i]);
+          
+            console.info(state.objects[i].deletedMeshes);
+            for (var z = 0; z < state.objects[i].deletedMeshes.length; z++) {
+            scene.add(state.objects[i].deletedMeshes[z]);
+            }
+            tubes.push(state.objects[i].tube);
+            changedTexts.push(state.objects[i].changedText);
+            descriptions.push(state.objects[i].description);
+            curves.push(state.objects[i].curve);
+            texts.push(state.objects[i].text);
+            previousCheckIfTubeIsOnRightOrLeft.push(state.objects[i].previousCheckIfTubeIsOnRightOrLeft);
+
           }
         }
       }
@@ -872,23 +883,30 @@
         for (var i = 0; i < tubes.length; i++) {
           let tube = tubes[i];
           if (tube.uuid == uuid) {
-            tubes.splice(i, 1);
-            changedTexts.splice(i, 1);
-            descriptions.splice(i, 1);
-            curves.splice(i, 1);
+            let index = tubes.findIndex((item) => {
+                console.log(item.uuid+"=="+tube.uuid);
+                return (item.uuid == tube.uuid);
+              });
+           
+            let deletedMeshes = [];
             let charactersMeshes = texts[i];
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
-              deletedItems.push(charactersMeshes[z]);
+              deletedMeshes.push(charactersMeshes[z]);
             }
-            texts.splice(i, 1);
-            previousCheckIfTubeIsOnRightOrLeft.splice(i, 1);
+           
+            
             scene.remove(tube.sphere2Mesh);
+            deletedMeshes.push(
+                tube.sphere2Mesh
+              );
             scene.remove(tube);
+            deletedMeshes.push(tube);
 
-              deletedItems.push(tube.sphere2Mesh);
-              deletedItems.push(tube);
 
+             
+              console.log("INDEX:"+index);
+              
             if (tube.sphere2Mesh.belongingHull) {
               if (tube.sphere2Mesh.belongingHull.spheres) {
                 for (
@@ -907,9 +925,27 @@
                 }
               }
               scene.remove(tube.sphere2Mesh.belongingHull);
-              deletedItems.push(tube.sphere2Mesh.belongingHull);
-              
+              deletedMeshes.push(tube.sphere2Mesh.belongingHull);
+             
             }
+
+            deletedItems.push({
+                deletedMeshes: deletedMeshes,
+                tube : tubes[index],
+                changedText : changedTexts[index],
+                description: descriptions[index],
+                curve: curves[index],
+                text: texts[index],
+                previousCheckIfTubeIsOnRightOrLeft : previousCheckIfTubeIsOnRightOrLeft[index]
+              })
+
+              tubes.splice(i, 1);
+            changedTexts.splice(i, 1);
+            descriptions.splice(i, 1);
+            curves.splice(i, 1);
+            texts.splice(i, 1);
+            previousCheckIfTubeIsOnRightOrLeft.splice(i, 1);
+
 
             break;
           }
