@@ -90,7 +90,15 @@
       function updateUI(state) {
         console.log("UPDATEUI called");
         console.error(state);
+        if (state.type == "resize") 
+        {
+          let object = state.id;
 
+          object.scale.x = state.size;
+          object.scale.y = state.size;
+          object.scale.z = state.size;
+
+        }
         if (state.type == "delete") 
         {
           for (var i = 0; i < state.objects.length; i++) {
@@ -226,6 +234,9 @@
              
               console.log("originalRadiu:"+originalRadius);
               currentUUID = object.uuid;
+
+              undoManager.resizeItem(object, originalRadius);
+               
               if (!prevNewRadiuses[object.uuid]) {
                 prevNewRadiuses[object.uuid] = originalRadius;
                 prevNewRadius = originalRadius;
@@ -246,10 +257,12 @@
           isResizing = false;
         } else if (recursiveResizing) {
           recursiveResizing = false;
+          delete prevNewRadiuses[currentUUID];
         }
         controls.enabled = true;
         event.preventDefault();
       });
+
 
       window.addEventListener("mousemove", (event) => {
         event.preventDefault();
