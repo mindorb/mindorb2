@@ -420,6 +420,7 @@
           tube.charactersMeshes = originalCharactersMeshes;
           tube.sphere1Mesh = resizedObject.tube.sphere1Mesh;
           tube.sphere2Mesh = resizedObject.tube.sphere2Mesh;
+          
           // Position and rotate the cylinder to match the curve
           var quaternion = new THREE.Quaternion();
           quaternion.setFromUnitVectors(
@@ -650,6 +651,7 @@
 
               tube.sphere1Mesh = movingHull.parentSphere.tube.sphere1Mesh;
               tube.sphere2Mesh = movingHull.parentSphere.tube.sphere2Mesh;
+              tube.charactersMeshes = movingHull.parentSphere.tube.charactersMeshes;
               tube.curve = movingHull.parentSphere.tube.curve;
               scene.remove(movingHull.parentSphere.tube);
               movingHull.parentSphere.tube = tube;
