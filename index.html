@@ -63,13 +63,14 @@
       let tubes = [];
       let descriptions = [];
       
-      
+      var keyCode17Disabled = false;
       var plane2 = null;
 
       var prevNewRadius = 0;
 
       let hullsVisible = true;
       let hullSpheres = [];
+      let hullParentSpheres = [];
       
       let selectedSphere = null;
 
@@ -88,22 +89,75 @@
       var originalRadius = 0.2;
       
       function updateUI(state) {
-        console.log("UPDATEUI called");
-        console.error(state);
-        if (state.type == "resize") 
+         if (state.type == "resize") 
         {
-          let object = state.id;
+          let resizedObject = state.id;
+          resizedObject.scale.x = state.originalRadius;
+          resizedObject.scale.y = state.originalRadius;
+          resizedObject.scale.z = state.originalRadius;
+          changeSpheres(resizedObject, state.originalRadius);
 
-          object.scale.x = state.size;
-          object.scale.y = state.size;
-          object.scale.z = state.size;
+          /*let parentRadiuses = state.childAndParentRadiuses;
 
+          for (var i = 0; i < state.childAndParentRadiuses.length; i++) {
+            let sphere = hullParentSpheres.find(function (sphere) {
+            return (
+              sphere.uuid == hullParentSpheres[i].uuid
+            );
+          });
+
+          if (sphere) {
+            console.log("FOUND");
+            sphere.scale.x = state.childAndParentRadiuses[i].scale;
+            sphere.scale.y = state.childAndParentRadiuses[i].scale;
+            sphere.scale.z = state.childAndParentRadiuses[i].scale;
+            sphere.belongingHull.scale.x = state.childAndParentRadiuses[i].hullRadius;
+            sphere.belongingHull.scale.y = state.childAndParentRadiuses[i].hullRadius;
+            sphere.belongingHull.scale.z = state.childAndParentRadiuses[i].hullRadius;
+          }
+
+          }*/
+
+        } else
+        if (state.type == "add") 
+        {
+          console.log("ADD");
+          for (var i = 0; i < state.addedIDs.length; i++) {
+            let sphere = hullParentSpheres.find(function (sphere) {
+              return (
+                sphere.uuid == state.addedIDs[i]
+              );
+            });
+            if (sphere) {
+              console.log("REMOVING SPHERE");
+              scene.remove(sphere);
+            }
+            let hull = hullSpheres.find(function (hull) {
+              return (
+                hull.uuid == state.addedIDs[i]
+              );
+            });
+            if (hull) {
+              console.log("REMOVING HULL");
+              scene.remove(hull);
+            }
+            let tube  = tubes.find(function (tube) {
+              return (
+                tube.uuid == state.addedIDs[i]
+              );
+            });
+            if (tube) {
+              console.log("REMOVING TUBE");
+              scene.remove(tube);
+            }
+            console.log("ADD END");
         }
+
+        } else
         if (state.type == "delete") 
         {
           for (var i = 0; i < state.objects.length; i++) {
           
-            console.info(state.objects[i].deletedMeshes);
             for (var z = 0; z < state.objects[i].deletedMeshes.length; z++) {
             scene.add(state.objects[i].deletedMeshes[z]);
             }
@@ -117,6 +171,20 @@
           }
         }
       }
+/*
+function addParentRadiuses(resizedObject, childAndParentRadiuses) {
+      childAndParentRadiuses.push({
+                  uuid : resizedObject.uuid,
+                  scale : getScaledRadius(resizedObject),
+                  position: resizedObject.position.clone(),
+                  hullRadius : getScaledRadius(resizedObject.belongingHull)
+                });
+      if ( (resizedObject.parentSphere) ) {
+            childAndParentRadiuses = addParentRadiuses(resizedObject.parentHull.parentSphere, childAndParentRadiuses);
+            }
+            return childAndParentRadiuses;
+      }
+*/
 
       // Example of how to initialize and use the UndoManager class
       const undoManager = new UndoManager(updateUI);
@@ -139,8 +207,7 @@
       var textOrientation = new THREE.Object3D();
       scene.add(textOrientation);
       let previousCheckIfTubeIsOnRightOrLeft = [];
-      let hulls = []; // Array to store the transparent hulls
-
+      
       // Set up orbit controls
       let controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.minPolarAngle = Math.PI / 4; // 45 degrees
@@ -181,8 +248,7 @@
         sphere.belongingHull = hull;
         hullSpheres.push(hull);
         scene.add(hull);
-        hulls.push(hull);
-        return hull.uuid;
+        return hull;
       };
 
       const MIN_RADIUS = 0.5; // Minimum allowed radius of the sphere
@@ -232,18 +298,20 @@
               resizedObject = object;
               originalRadius = getScaledRadius(object);
              
-              console.log("originalRadiu:"+originalRadius);
               currentUUID = object.uuid;
+             
+              /*let childAndParentRadiuses = addParentRadiuses(resizedObject.parentSphere, []); */
 
-              undoManager.resizeItem(object, originalRadius);
+              undoManager.resizeItem(object, originalRadius,  null); // childAndParentRadiuses
                
+
+
               if (!prevNewRadiuses[object.uuid]) {
                 prevNewRadiuses[object.uuid] = originalRadius;
                 prevNewRadius = originalRadius;
               } else {
                 prevNewRadius = prevNewRadiuses[object.uuid];
               }
-                //originalRadius = object.geometry.parameters.radius;
                 startingMousePosition = { x: event.clientX, y: event.clientY };
               recursiveResizing = true;
             }
@@ -287,8 +355,6 @@
 
         let isHullVisible = false;
         let maxChildSphereRadius;
-        console.log("newRadius:"+newRadius);
-        console.log("PREV:"+prevNewRadius);
         let increasing = newRadius > prevNewRadius ? true : false;
 
         if (isResizing) {
@@ -297,7 +363,6 @@
             newRadius >
             resizedObject.parentHull.geometry.parameters.radius / 2
           )
-            console.log("XXX");
           return;
         } else if (recursiveResizing) {
           //if (increasing) {
@@ -329,29 +394,19 @@
 
         if (recursiveResizing) {
           if (!increasing) {
-            console.log("MAX:" + maxChildSphereRadius);
-            console.log("getScaledRadiu:" + getScaledRadius(resizedObject));
             if (newRadius * 2 <= maxChildSphereRadius) {
               recursiveResizing = false;
-              console.log("YY");
               return;
             }
 
-            console.log("Check to small1");
-          
               if (newRadius  < maxChildSphereRadius) {
                 recursiveResizing = false;
-                console.log("RETURN TOO SMALL2" + maxChildSphereRadius);
                 resizedObject.scale.x = newRadius;
                 resizedObject.scale.y = newRadius;
                 resizedObject.scale.z = newRadius;
-                console.log("ZZZ");
                 return;
               }
-              console.log("increasing:"+increasing);
-              console.log(newRadius/2+"<!!!"+getScaledRadius(resizedObject.parentSphere));
               if (newRadius / 2 < getScaledRadius(resizedObject.parentSphere)) {
-                console.log("VVV");
                 recursiveResizing = false;
                 return;
               }
@@ -363,7 +418,6 @@
               if (getScaledRadius(resizedObject) > resizedObject.parentSphere.parentHull) {
                 recursiveResizing = false;
                 lastRadius = newRadius;
-                console.log("VVV");
                 return;
               }
             } else {
@@ -373,7 +427,6 @@
 
           prevNewRadius = newRadius;
           prevNewRadiuses[currentUUID] = newRadius;
-          console.log("SCALED = "+newRadius);
           resizedObject.scale.x = newRadius;
           resizedObject.scale.y = newRadius;
           resizedObject.scale.z = newRadius;
@@ -390,17 +443,12 @@
           resizedObject.position.y == 0 &&
           resizedObject.position.z == 0
         ) {
-          changeSpheres(resizedObject, newRadius, false);
+          changeSpheres(resizedObject, newRadius);
         } else {
-          changeSpheres(resizedObject, newRadius, false);
+          changeSpheres(resizedObject, newRadius);
         }
 
         if (isResizing) {
-          console.log("TUBE:");
-          console.log(resizedObject.tube);
-          console.log(getScaledRadius(resizedObject));
-          console.log(getScaledRadius(resizedObject.tube.sphere1Mesh));
-          console.log(newRadius);
           tubeGeometry = new THREE.CylinderGeometry(
             newRadius / 4,
             getScaledRadius(resizedObject.tube.sphere1Mesh) / 4,
@@ -420,7 +468,7 @@
           tube.charactersMeshes = originalCharactersMeshes;
           tube.sphere1Mesh = resizedObject.tube.sphere1Mesh;
           tube.sphere2Mesh = resizedObject.tube.sphere2Mesh;
-          
+
           // Position and rotate the cylinder to match the curve
           var quaternion = new THREE.Quaternion();
           quaternion.setFromUnitVectors(
@@ -481,7 +529,7 @@
         );
       }
 
-      function changeSpheres(bigSphere, newRadius, recursive) {
+      function changeSpheres(bigSphere, newRadius) {
         if (!bigSphere.spheres) return;
         for (let i = 0; i < bigSphere.spheres.length; i++) {
           let smallSphere = bigSphere.spheres[i].clone();
@@ -584,15 +632,12 @@
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
 
-        console.log(0);
         if (intersects.length > 0) {
-          console.log(1);
           for (var i = 0; i < intersects.length; i++) {
             const intersection = intersects[i];
             const object = intersection.object;
             let originalPos = object.position.clone();
             if (object.uuid == movingHull.parentSphere.parentHull.uuid) {
-              console.log(2);
 
               let curve = new THREE.LineCurve3(
                 movingHull.parentSphere.parentHull.position,
@@ -719,7 +764,6 @@
           let description = document.getElementById("updateSelection").value;
           undoManager.changeItemText(updatingTextObject.uuid, description);
 
-          console.log("DESC:" + description);
           for (let i = 0; i < updatingTextObject.charactersMeshes.length; i++) {
             scene.remove(updatingTextObject.charactersMeshes[i]);
           }
@@ -771,16 +815,19 @@
             sphere.parentHull.parentSphere,
             sphere,
             sphereRadius
+          
           );
+          hull.parentSphere.tube = sphere.tube;
 
           if (!hull.spheres) {
             hull.spheres = [sphere];
           } else {
             hull.spheres.push(sphere);
           }
-          return hull.uuid;
+          hullParentSpheres.push(sphere);
+          return sphere;
         }
-        return "";
+        return null;
       }
 
       function addText(description, sphere1, sphere2, sphereRadius) {
@@ -834,7 +881,6 @@
 
         tubes.push(tube);
 
-        undoManager.addItem();
         //tubeGeometries.push(tubeGeometry);
         return tube;
       }
@@ -892,8 +938,7 @@
       );
 
       function deleteSphere() {
-        console.log("UNDO MANAGER WITH DELETEITEM CALLED");
-
+        
         deletedItems = deleteSphereSub(updatingTextObject.uuid, []);
         undoManager.deleteItem(updatingTextObject.uuid, deletedItems);
         document.getElementById("updateDIV").style.display = "none";
@@ -904,7 +949,6 @@
           let tube = tubes[i];
           if (tube.uuid == uuid) {
             let index = tubes.findIndex((item) => {
-                console.log(item.uuid+"=="+tube.uuid);
                 return (item.uuid == tube.uuid);
               });
            
@@ -925,7 +969,6 @@
 
 
              
-              console.log("INDEX:"+index);
               
             if (tube.sphere2Mesh.belongingHull) {
               if (tube.sphere2Mesh.belongingHull.spheres) {
@@ -989,20 +1032,27 @@
             object instanceof THREE.Mesh &&
             object.material.color.getHex() === 0xaaaaff
           ) {
-            let hullID = addHullToSphere(object);
-            undoManager.addItem(hullID, "", "hull");
+            let hull = addHullToSphere(object);
+            console.log(object);
+            if (object.belongingHull.parentSphere.tube) {
+              console.log("11111111111");
+              undoManager.addItem(hull.uuid, [  hull.uuid ]);
+            } else {
+              console.log("222222222"+hull.id);
+              undoManager.addItem(hull.uuid, [hull.uuid]);
+            }
           } else {
             if (document.getElementById("description").value == "") {
               document.getElementById("description").focus();
               document.getElementById("description").style.border = "3px solid";
               document.getElementById("description").style.borderColor = "red";
             } else {
-              let sphereID = addSphere(object);
-              if (sphereID != "") {
+              let sphere = addSphere(object);
+              if (sphere != null) {
+                console.log(sphere);
                 undoManager.addItem(
-                  sphereID,
-                  document.getElementById("description").value,
-                  "sphereandtube"
+                  sphere.uuid,
+                  [sphere.uuid, sphere.tube.uuid]                
                 );
               }
               document.getElementById("description").value = "";
@@ -1017,8 +1067,17 @@
       var percentage = 0;
       let offset = 0.2;
 
+      let int = setInterval(function() {
+        console.log("***");
+        for (var y = 0; y < hullSpheres.length; y++) {
+          console.log(hullSpheres);
+        }
+        console.log("***");
+      }, 2000);
+
       //animate()
       const animate = () => {
+      
         requestAnimationFrame(animate);
         renderer.render(scene, camera);
         var secondAlignerObject = null;
@@ -1255,16 +1314,10 @@
       animate();
 
       function checkTooLarge(resizedObject) {
-        console.log("CHECKTOOLARGE");
-        console.log(resizedObject);
         if (resizedObject.parentSphere.parentHull) {
-          console.log("RESIZEDOBJECT>MAXCHILDSPHERERADIUS");
           let parentRadius =
             getScaledRadius(resizedObject.parentSphere.parentHull) / 2;
-          console.log(getScaledRadius(resizedObject));
-          console.log(parentRadius);
           if (getScaledRadius(resizedObject) * 2 > parentRadius) {
-            console.log("SETTING RESIZEDOBJECT TO " + parentRadius);
             return true;
           }
         } else {
@@ -1397,7 +1450,6 @@
         startPosition,
         endPosition
       ) {
-        console.log("CREATE");
         var characters = text.split("");
 
         let charactersMeshes = [];
@@ -1481,7 +1533,10 @@
 
       function KeyPress(e) {
         var evtobj = window.event ? event : e;
-        if (evtobj.keyCode == 17) {
+        if (evtobj.keyCode == 27) {
+          keyCode17Disabled = !keyCode17Disabled;
+        } else
+        if ( (evtobj.keyCode == 17) && (keyCode17Disabled == false) ) {
           hullsVisible = !hullsVisible;
           for (var i = 0; i < hullSpheres.length; i++) {
             hullSpheres[i].visible = hullsVisible;
