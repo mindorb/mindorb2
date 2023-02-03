@@ -34,4 +34,20 @@ class UndoManager {
     deleteItem(id, objects) {
         this.pushState({ type: "delete", id, objects });
     }
+
+    replaceUUID(oldID, newID) {
+        console.log("REPO "+oldID+" newID"+newID);
+        let index = this.states.findIndex(function (state) {
+          return (
+            (state.type=='add') && (state.addedIDs.includes(oldID))
+          );
+        });
+        console.log("Index: "+index);
+        if (index !== -1) {
+          this.states[index].addedIDs = this.states[index].addedIDs.map(function(addedID) {
+            return addedID == oldID ? newID : addedID;
+          });
+          console.log(this.states[index].addedIDs);
+        }
+      }
 }

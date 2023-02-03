@@ -63,7 +63,7 @@
       let tubes = [];
       let descriptions = [];
       
-      var keyCode17Disabled = false;
+      var keyCode17Disabled = true;
       var plane2 = null;
       var previousDescriptionCheck = '';
 
@@ -124,7 +124,7 @@
         } else
         if (state.type == "add") 
         {
-  
+          console.error(state.addedIDs);
           for (var i = 0; i < state.addedIDs.length; i++) {
             let sphere = hullParentSpheres.find(function (sphere) {
               return (
@@ -159,7 +159,10 @@
 
               scene.remove(hull);
             }
+            console.log("TUBEES");
             let tube  = tubes.find(function (tube) {
+              
+              console.log(tube.uuid+"=="+state.addedIDs[i]);
               return (
                 tube.uuid == state.addedIDs[i]
               );
@@ -200,7 +203,7 @@
             for (var z = 0; z < state.objects[i].deletedMeshes.length; z++) {
             scene.add(state.objects[i].deletedMeshes[z]);
             }
-            addGlobalSplice(i, state);
+            addlobalSplice(i, state);
 
           }
         } else if (state.type == "changeText") 
@@ -265,6 +268,8 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
         previousCheckIfTubeIsOnRightOrLeft.push(state.objects[i].previousCheckIfTubeIsOnRightOrLeft);
 
       }
+
+     
 
       // Example of how to initialize and use the UndoManager class
       const undoManager = new UndoManager(updateUI);
@@ -632,6 +637,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           let originalDescription = bigSphere.spheres[i].tube.description;
           let originalCharactersMeshes =
             bigSphere.spheres[i].tube.charactersMeshes;
+            let oldID =bigSphere.spheres[i].tube.uuid; 
           scene.remove(bigSphere.spheres[i].tube);
 
           let start = bigSphere.position;
@@ -650,6 +656,18 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             transparent: false,
           });
           var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+          undoManager.replaceUUID(oldID, tube.uuid);
+          let tubeIndex = tubes.findIndex((item) => {
+              console.log(item.uuid+"=="+tube.uuid);  
+              return (item.uuid === oldID);
+            });
+            console.log("tubeindex:"+tubeIndex);
+          if (tubeIndex!=-1) {
+            console.log("UPDATING TUBE "+tubeIndex);
+            tubes[tubeIndex]=tube;
+          }
+         
+
           tube.description = originalDescription;
           tube.charactersMeshes = originalCharactersMeshes;
           tube.sphere1Mesh = bigSphere.spheres[i].tube.sphere1Mesh;
@@ -1033,6 +1051,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           let tube = tubes[i];
           if (tube.uuid == uuid) {
             let index = tubes.findIndex((item) => {
+              
                 return (item.uuid == tube.uuid);
               });
            
