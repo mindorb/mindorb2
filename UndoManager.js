@@ -7,6 +7,7 @@ class UndoManager {
     pushState(state) {
         this.states.push(state);
         console.log("PUSHED");
+        console.log(this.states.length);
     }
 
     undo() {
