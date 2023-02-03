@@ -97,6 +97,7 @@
           resizedObject.scale.z = state.originalRadius;
           changeSpheres(resizedObject, state.originalRadius);
 
+       
           /*let parentRadiuses = state.childAndParentRadiuses;
 
           for (var i = 0; i < state.childAndParentRadiuses.length; i++) {
@@ -133,12 +134,27 @@
               scene.remove(sphere);
             }
             let hull = hullSpheres.find(function (hull) {
+              console.log(hull);
+              console.log(state.addedIDs[i]);
               return (
                 hull.uuid == state.addedIDs[i]
               );
             });
             if (hull) {
               console.log("REMOVING HULL");
+
+              let hullIndex  = hullSpheres.findIndex(function (myHull) {
+              return (
+                myHull.uuid == hull.uuid
+              );
+            });
+
+            if (hullIndex!=-1) {
+              deleteGlobalSplice(hullIndex);
+            }
+
+            removeFromHullSphereIndex(state.addedIDs[i]);
+
               scene.remove(hull);
             }
             let tube  = tubes.find(function (tube) {
@@ -148,9 +164,30 @@
             });
             if (tube) {
               console.log("REMOVING TUBE");
+             
+
+              let tubeIndex  = tubes.findIndex(function (tube) {
+              return (
+                tube.uuid == state.addedIDs[i]
+              );
+            });
+
+            if (tubeIndex!=-1) {
+              console.log(tubeIndex);
+              console.log(tubes[tubeIndex]);
+            if ( tubes[tubeIndex].charactersMeshes ) {
+              for (var z = 0; z < tubes[tubeIndex].charactersMeshes.length; z++) {
+              scene.remove(tubes[tubeIndex].charactersMeshes[z]);
+              }
+            }
+              deleteGlobalSplice(tubeIndex);
               scene.remove(tube);
+          }
+
             }
             console.log("ADD END");
+
+            
         }
 
         } else
@@ -161,12 +198,7 @@
             for (var z = 0; z < state.objects[i].deletedMeshes.length; z++) {
             scene.add(state.objects[i].deletedMeshes[z]);
             }
-            tubes.push(state.objects[i].tube);
-            changedTexts.push(state.objects[i].changedText);
-            descriptions.push(state.objects[i].description);
-            curves.push(state.objects[i].curve);
-            texts.push(state.objects[i].text);
-            previousCheckIfTubeIsOnRightOrLeft.push(state.objects[i].previousCheckIfTubeIsOnRightOrLeft);
+            addlobalSplice(i, state);
 
           }
         }
@@ -185,6 +217,42 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             return childAndParentRadiuses;
       }
 */
+
+      const removeFromHullSphereIndex = (id) => {
+
+        let hullIndex  = hullSpheres.findIndex(function (hull) {
+              return (
+                hull.uuid == id
+              );
+            });
+
+            if (hullIndex!=-1) {
+              hullSpheres.splice(hullIndex);
+              console.log("HULLSPHERES");
+              console.log(hullSpheres);
+            }
+
+      };
+
+      const deleteGlobalSplice = (i) => {
+            tubes.splice(i, 1);
+            changedTexts.splice(i, 1);
+            descriptions.splice(i, 1);
+            curves.splice(i, 1);
+            texts.splice(i, 1);
+            previousCheckIfTubeIsOnRightOrLeft.splice(i, 1);
+      }
+
+      const addGlobalSplice = (i, state) => {
+        
+        tubes.push(state.objects[i].tube);
+        changedTexts.push(state.objects[i].changedText);
+        descriptions.push(state.objects[i].description);
+        curves.push(state.objects[i].curve);
+        texts.push(state.objects[i].text);
+        previousCheckIfTubeIsOnRightOrLeft.push(state.objects[i].previousCheckIfTubeIsOnRightOrLeft);
+
+      }
 
       // Example of how to initialize and use the UndoManager class
       const undoManager = new UndoManager(updateUI);
@@ -1002,12 +1070,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
                 previousCheckIfTubeIsOnRightOrLeft : previousCheckIfTubeIsOnRightOrLeft[index]
               })
 
-              tubes.splice(i, 1);
-            changedTexts.splice(i, 1);
-            descriptions.splice(i, 1);
-            curves.splice(i, 1);
-            texts.splice(i, 1);
-            previousCheckIfTubeIsOnRightOrLeft.splice(i, 1);
+              deleteGlobalSplice(i);
 
 
             break;
