@@ -31,8 +31,8 @@ class UndoManager {
         this.pushState({ type: "resize", id, originalRadius, childAndParentRadiuses });
     }
 
-    deleteItem(id, objects) {
-        this.pushState({ type: "delete", id, objects });
+    deleteItem(id, objects, parentItem, replaceItem) {
+        this.pushState({ type: "delete", id, objects, parentItem, replaceItem});
     }
 
     replaceUUID(oldID, newID) {
