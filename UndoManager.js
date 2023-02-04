@@ -36,8 +36,9 @@ class UndoManager {
     }
 
     replaceUUID(oldID, newID) {
+        let index;
         console.log("REPO "+oldID+" newID"+newID);
-        let index = this.states.findIndex(function (state) {
+        index = this.states.findIndex(function (state) {
           return (
             (state.type=='add') && (state.addedIDs.includes(oldID))
           );
@@ -49,5 +50,8 @@ class UndoManager {
           });
           console.log(this.states[index].addedIDs);
         }
+
+      
+
       }
 }

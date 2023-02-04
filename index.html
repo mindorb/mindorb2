@@ -63,7 +63,7 @@
       let tubes = [];
       let descriptions = [];
       
-      var keyCode17Disabled = false;
+      var keyCode17Disabled = true;
       var plane2 = null;
       var previousDescriptionCheck = '';
 
@@ -97,7 +97,7 @@
           resizedObject.scale.x = state.originalRadius;
           resizedObject.scale.y = state.originalRadius;
           resizedObject.scale.z = state.originalRadius;
-          changeSpheres(resizedObject, state.originalRadius);
+          changeSpheres(resizedObject, state.originalRadius, true);
 
        
           /*let parentRadiuses = state.childAndParentRadiuses;
@@ -257,6 +257,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
       const addGlobalSplice = (i, state) => {
         
+        state.objects[i].tube.tubeIndex = tubes.length;
         tubes.push(state.objects[i].tube);
         changedTexts.push(state.objects[i].changedText);
         descriptions.push(state.objects[i].description);
@@ -523,9 +524,9 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           resizedObject.position.y == 0 &&
           resizedObject.position.z == 0
         ) {
-          changeSpheres(resizedObject, newRadius);
+          changeSpheres(resizedObject, newRadius, false);
         } else {
-          changeSpheres(resizedObject, newRadius);
+          changeSpheres(resizedObject, newRadius, false);
         }
 
         if (isResizing) {
@@ -548,7 +549,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           tube.charactersMeshes = originalCharactersMeshes;
           tube.sphere1Mesh = resizedObject.tube.sphere1Mesh;
           tube.sphere2Mesh = resizedObject.tube.sphere2Mesh;
-
+          tube.index = resizedObject.tube.index;
           // Position and rotate the cylinder to match the curve
           var quaternion = new THREE.Quaternion();
           quaternion.setFromUnitVectors(
@@ -587,7 +588,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
               hull.scale.y = resizedObject.scale.y;
               hull.scale.z = resizedObject.scale.z;
             }
-            changeSpheres(hull, getScaledRadius(hull));
+            changeSpheres(hull, getScaledRadius(hull), false);
 
             if (hull.parentSphere && hull.parentSphere.parentHull) {
               hull = hull.parentSphere.parentHull;
@@ -609,7 +610,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
         );
       }
 
-      function changeSpheres(bigSphere, newRadius) {
+      function changeSpheres(bigSphere, newRadius, doDelete) {
         if (!bigSphere.spheres) return;
         for (let i = 0; i < bigSphere.spheres.length; i++) {
           let smallSphere = bigSphere.spheres[i].clone();
@@ -633,6 +634,8 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           let originalCharactersMeshes =
             bigSphere.spheres[i].tube.charactersMeshes;
           scene.remove(bigSphere.spheres[i].tube);
+          let oldID =bigSphere.spheres[i].tube.uuid; 
+          if (doDelete) removeTubeID(oldID, tube);
 
           let start = bigSphere.position;
           let end = bigSphere.spheres[i].position;
@@ -650,8 +653,11 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             transparent: false,
           });
           var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+          undoManager.replaceUUID(oldID, tube.uuid);
           tube.description = originalDescription;
           tube.charactersMeshes = originalCharactersMeshes;
+          if (bigSphere.spheres[i].tube) {
+            tube.index = bigSphere.spheres[i].tube.index;
           tube.sphere1Mesh = bigSphere.spheres[i].tube.sphere1Mesh;
           tube.sphere2Mesh = bigSphere.spheres[i].tube.sphere2Mesh;
           tube.curve = bigSphere.spheres[i].tube.curve;
@@ -679,6 +685,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           bigSphere.spheres[i].tubeGeometry = tubeGeometry;
 
           scene.add(tube);
+          }
 
           if (!bigSphere.spheres[i].belongingHull) {
           } else {
@@ -849,13 +856,16 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
           if (previousDescriptionCheck != description) {
             undoManager.changeItemText(updatingTextObject, description);
+            console.log(updatingTextObject);
             for (let i = 0; i < updatingTextObject.charactersMeshes.length; i++) {
               scene.remove(updatingTextObject.charactersMeshes[i]);
             }
-
+            console.log("updatingTextObject.index:"+updatingTextObject.index);
+            changedTexts[updatingTextObject.index]=true;
             descriptions[updatingTextObject.index] = description;
             previousCheckIfTubeIsOnRightOrLeft[updatingTextObject.index] = null;
             previousDescriptionCheck = description;
+            console.log("OK");
           }
         }
       }
@@ -901,7 +911,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             sphereRadius
           
           );
-          hull.parentSphere.tube = sphere.tube;
+          //hull.parentSphere.tube = sphere.tube;
 
           if (!hull.spheres) {
             hull.spheres = [sphere];
@@ -963,6 +973,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
         // Add the text orientation object to the scene
         scene.add(textOrientation);
 
+        tube.tubeIndex = tubes.length;
         tubes.push(tube);
 
         //tubeGeometries.push(tubeGeometry);
@@ -1186,12 +1197,13 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
                 .clone()
                 .multiplyScalar(getScaledRadius(tube.sphere2Mesh))
             );
-
+            console.log("CHANGEDTEXTS:"+changedTexts[i]);
           if (
             previousCheckIfTubeIsOnRightOrLeft[i] == null ||
             previousCheckIfTubeIsOnRightOrLeft[i] != currentTubeDirection ||
             changedTexts[i] == true
           ) {
+            console.log("CHANGEDTEXTS:"+changedTexts[i]);
             changedTexts[i] = false;
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
@@ -1210,8 +1222,15 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             tube.description = description;
             tube.curve = curve;
             tube.charactersMeshes = charactersMeshes;
+            console.error("CHARacTERMESHES!");
+            
+            if (updatingTextObject) {
+            updatingTextObject.charactersMeshes = charactersMeshes;
+            }
+
             tube.index = i;
             texts[i] = charactersMeshes;
+            console.log(charactersMeshes);
           }
 
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
@@ -1617,6 +1636,58 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           undoManager.undo(); // undoes the last change text action
         }
       }
+
+      const removeTubeID = (oldID, tube) => {
+        let tubeIndex = tubes.findIndex((item) => {
+              console.log(item.uuid+"=="+oldID);  
+              return (item.uuid === oldID);
+            });
+            console.log("tubeindex:"+tubeIndex);
+          if (tubeIndex!=-1) {
+            console.log("UPDATING TUBE "+tubeIndex);
+            //tubes[tubeIndex]=tube;
+          }
+
+          console.log("REMOVETUBEID");
+         deleteTubeRecursively(oldID, sphere);
+         
+      }
+
+     function deleteTubeRecursively(oldID, sphere) {
+
+      if ( (sphere.belongingHull) && (sphere.belongingHull.spheres) ) {
+      for (let x = 0; x < sphere.belongingHull.spheres.length; x++) {
+        
+        let subSphere = sphere.belongingHull.spheres[x];
+        if (subSphere.tube) {
+          if (subSphere.tube.uuid == oldID) {
+            console.log("SUBSPHERE");
+            console.log(subSphere);
+            console.log("INDEX:"+subSphere.tube.tubeIndex);
+            for (var z = 0; z < subSphere.tube.charactersMeshes.length; z++) {
+              console.log("Removingg "+z);
+              scene.remove(subSphere.tube.charactersMeshes[z]);
+              console.log(subSphere.tube.charactersMeshes[z]);
+            }
+            deleteGlobalSplice(subSphere.tube.tubeIndex);
+            scene.remove(subSphere);
+
+           
+            sphere.belongingHull.spheres[x].tube = null;
+  
+            
+          }
+          }
+
+          deleteTubeRecursively(oldID, subSphere);
+
+        }
+       
+      }
+           
+     }
+
+
 
       const createPlane = (
         description,
