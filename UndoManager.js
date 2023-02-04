@@ -19,8 +19,8 @@ class UndoManager {
         this.states.pop();
     }
 
-    addItem(id, addedIDs) {
-        this.pushState({ type: "add", id, addedIDs });
+    addItem(id, itemType, addedIDs) {
+        this.pushState({ type: "add", id, itemType, addedIDs });
     }
 
     changeItemText(id, text) {

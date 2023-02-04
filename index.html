@@ -146,16 +146,11 @@
             });
             if (hull) {
               
-
               let hullIndex  = hullSpheres.findIndex(function (myHull) {
               return (
                 myHull.uuid == hull.uuid
               );
             });
-
-            if (hullIndex!=-1) {
-              deleteGlobalSplice(hullIndex);
-            }
 
             removeFromHullSphereIndex(state.addedIDs[i]);
 
@@ -184,8 +179,11 @@
               }
             }
               
-              deleteTubeRecursively(tube.uuid, sphere, false)
+              deleteTubeRecursively(tube.uuid, sphere, false);
+              if (state.itemType!='hull') {
+             
               deleteGlobalSplice(tubeIndex);
+              }
               scene.remove(tube);
           }
 
@@ -242,7 +240,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             });
 
             if (hullIndex!=-1) {
-              hullSpheres.splice(hullIndex);
+              hullSpheres.splice(hullIndex, 1);
               
             }
 
@@ -294,7 +292,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       // Set up orbit controls
       let controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.addEventListener('start', function() {
-        setTimeout(function() { isRotating = true; }, 250);
+        setTimeout(function() { isRotating = true; },250);
       });
       controls.addEventListener('end', function() {
        setTimeout(function() { isRotating = false; }, 250);
@@ -1151,12 +1149,9 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           ) {
             let hull = addHullToSphere(object);
             console.log(object);
-            if (object.belongingHull.parentSphere.tube) {
-              
-              undoManager.addItem(hull.uuid, [  hull.uuid ]);
-            } else {
-              undoManager.addItem(hull.uuid, [hull.uuid]);
-            }
+           
+            undoManager.addItem(hull.uuid, "hull", [  hull.uuid ]);
+        
           } else {
             if (document.getElementById("description").value == "") {
               document.getElementById("description").focus();
@@ -1166,7 +1161,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
               let sphere = addSphere(object);
               if (sphere != null) {
                 undoManager.addItem(
-                  sphere.uuid,
+                  sphere.uuid, "sphere",
                   [sphere.uuid, sphere.tube.uuid]                
                 );
               }
