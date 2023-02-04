@@ -57,11 +57,14 @@
     <script>
       window.onload = function () {
         document.getElementById("description").focus();
+        document.getElementById('description').value=defaultValue;
       };
       let texts = [];
       var curves = [];
       let tubes = [];
       let descriptions = [];
+      let defaultValue ='HELLO WORLD';
+      var isRotating = false;
       
       var keyCode17Disabled = true;
       var plane2 = null;
@@ -90,7 +93,7 @@
       var originalRadius = 0.2;
       
       function updateUI(state) {
-        console.log(state.type);
+        
          if (state.type == "resize") 
         {
           let resizedObject = state.id;
@@ -132,18 +135,17 @@
               );
             });
             if (mySphere) {
-              console.log("REMOVING SPHERE");
+              
               scene.remove(mySphere);
             }
             let hull = hullSpheres.find(function (hull) {
-              console.log(hull);
-              console.log(state.addedIDs[i]);
+              
               return (
                 hull.uuid == state.addedIDs[i]
               );
             });
             if (hull) {
-              console.log("REMOVING HULL");
+              
 
               let hullIndex  = hullSpheres.findIndex(function (myHull) {
               return (
@@ -165,7 +167,7 @@
               );
             });
             if (tube) {
-              console.log("REMOVING TUBE");
+              
              
 
               let tubeIndex  = tubes.findIndex(function (tube) {
@@ -175,21 +177,20 @@
             });
 
             if (tubeIndex!=-1) {
-              console.log(tubeIndex);
-              console.log(tubes[tubeIndex]);
+              
             if ( tubes[tubeIndex].charactersMeshes ) {
               for (var z = 0; z < tubes[tubeIndex].charactersMeshes.length; z++) {
               scene.remove(tubes[tubeIndex].charactersMeshes[z]);
               }
             }
-              console.log("DELETETUBERECURSIVELY");
+              
               deleteTubeRecursively(tube.uuid, sphere, false)
               deleteGlobalSplice(tubeIndex);
               scene.remove(tube);
           }
 
             }
-            console.log("ADD END");
+            
 
             
         }
@@ -242,8 +243,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
             if (hullIndex!=-1) {
               hullSpheres.splice(hullIndex);
-              console.log("HULLSPHERES");
-              console.log(hullSpheres);
+              
             }
 
       };
@@ -293,6 +293,13 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       
       // Set up orbit controls
       let controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.addEventListener('start', function() {
+        setTimeout(function() { isRotating = true; }, 250);
+      });
+      controls.addEventListener('end', function() {
+       setTimeout(function() { isRotating = false; }, 250);
+      });
+
       controls.minPolarAngle = Math.PI / 4; // 45 degrees
       controls.maxPolarAngle = (3 * Math.PI) / 4; // 135 degrees
       let resizedObject;
@@ -342,6 +349,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       let startingMousePosition = { x: 0, y: 0 };
 
       window.addEventListener("mousedown", (event) => {
+        event.preventDefault();
         const mouse = new THREE.Vector2();
         mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
         mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
@@ -403,20 +411,23 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       });
 
       window.addEventListener("pointerup", () => {
+        console.log("POINER");
+        event.preventDefault();
         movingHull = null;
         if (isResizing) {
           isResizing = false;
         } else if (recursiveResizing) {
-          recursiveResizing = false;
+          setTimeout(function() { recursiveResizing = false; }, 250);
           delete prevNewRadiuses[currentUUID];
         }
         controls.enabled = true;
-        event.preventDefault();
+       
       });
 
 
       window.addEventListener("mousemove", (event) => {
         event.preventDefault();
+        
         if (movingHull) {
           moveHull(movingHull);
           return;
@@ -653,7 +664,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           );
 
           var tubeMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
+            color: getRandomColor(),
             transparent: false,
           });
           var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
@@ -862,16 +873,16 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
           if (previousDescriptionCheck != description) {
             undoManager.changeItemText(updatingTextObject, description);
-            console.log(updatingTextObject);
+            
             for (let i = 0; i < updatingTextObject.charactersMeshes.length; i++) {
               scene.remove(updatingTextObject.charactersMeshes[i]);
             }
-            console.log("updatingTextObject.index:"+updatingTextObject.index);
+            
             changedTexts[updatingTextObject.index]=true;
             descriptions[updatingTextObject.index] = description;
             previousCheckIfTubeIsOnRightOrLeft[updatingTextObject.index] = null;
             previousDescriptionCheck = description;
-            console.log("OK");
+            
           }
         }
       }
@@ -1117,6 +1128,12 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       }
 
       window.addEventListener("click", () => {
+        console.log("RECURSIVERESIZINGG:"+recursiveResizing);
+        if (recursiveResizing==true) return;
+        if (isRotating == true) {
+          console.log("ROTATING");
+          return;
+        }
         const mouse = new THREE.Vector2();
         mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
         mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
@@ -1135,10 +1152,9 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             let hull = addHullToSphere(object);
             console.log(object);
             if (object.belongingHull.parentSphere.tube) {
-              console.log("11111111111");
+              
               undoManager.addItem(hull.uuid, [  hull.uuid ]);
             } else {
-              console.log("222222222"+hull.id);
               undoManager.addItem(hull.uuid, [hull.uuid]);
             }
           } else {
@@ -1149,13 +1165,12 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             } else {
               let sphere = addSphere(object);
               if (sphere != null) {
-                console.log(sphere);
                 undoManager.addItem(
                   sphere.uuid,
                   [sphere.uuid, sphere.tube.uuid]                
                 );
               }
-              document.getElementById("description").value = "";
+              document.getElementById("description").value = defaultValue;
             }
           }
         }
@@ -1207,13 +1222,13 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
                 .clone()
                 .multiplyScalar(getScaledRadius(tube.sphere2Mesh))
             );
-            console.log("CHANGEDTEXTS:"+changedTexts[i]);
+            
           if (
             previousCheckIfTubeIsOnRightOrLeft[i] == null ||
             previousCheckIfTubeIsOnRightOrLeft[i] != currentTubeDirection ||
             changedTexts[i] == true
           ) {
-            console.log("CHANGEDTEXTS:"+changedTexts[i]);
+            
             changedTexts[i] = false;
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
@@ -1240,7 +1255,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
             tube.index = i;
             texts[i] = charactersMeshes;
-            console.log(charactersMeshes);
+            
           }
 
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
@@ -1649,16 +1664,10 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
       const removeTubeID = (oldID, tube) => {
         let tubeIndex = tubes.findIndex((item) => {
-              console.log(item.uuid+"=="+oldID);  
+              
               return (item.uuid === oldID);
             });
-            console.log("tubeindex:"+tubeIndex);
-          if (tubeIndex!=-1) {
-            console.log("UPDATING TUBE "+tubeIndex);
-            //tubes[tubeIndex]=tube;
-          }
-
-          console.log("REMOVETUBEID");
+          
          deleteTubeRecursively(oldID, sphere, true);
          
       }
