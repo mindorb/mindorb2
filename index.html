@@ -61,7 +61,7 @@
         
       };
       var allowRun = [];
-      let texts = [];
+      var texts = [];
       var curves = [];
       let tubes = [];
       let descriptions = [];
@@ -95,25 +95,25 @@
       var originalRadius = 0.2;
       
       function updateUI(state) {
-
+        console.log("TYPE:"+state.type);
         if (state.type == "delete") 
         {
+          console.log("TYPE DELETE");
           for (var i = 0; i < state.objects.length; i++) {
-          
-            for (var z = 0; z < state.objects[i].deletedMeshes.length; z++) {
-              scene.add(state.objects[i].deletedMeshes[z]);
-            }
-            addGlobalSplice(i, state);
+            consoli(state.objects[i].deletedMeshes);
+
+           
+            scene.add(state.objects[i].tube.sphere2Mesh.belongingHull);
+            scene.add(state.objects[i].tube);
+            scene.add(state.objects[i].tube.sphere2Mesh);
+            
+            addGlobalSplice(i, state, state.objects[i].deletedMeshes);
 
           }
           let object = state.parentItem;
-          console.log("OBJECT");
-          console.log(object);
-          object.spheres.push(state.replaceItem);
-          
-       
-          console.log("PAERENTITEM");
-          console.log(state.parentItem);
+          object.spheres.push(state.replaceItem.sphere2Mesh);
+          object.parentSphere.tube = state.replaceItem;
+          object.parentSphere.tube.charactersMeshes = state.replaceItem.charactersMeshes;
         } else
          if (state.type == "resize") 
         {
@@ -194,9 +194,13 @@
             if (tubeIndex!=-1) {
               
             if ( tubes[tubeIndex].charactersMeshes ) {
-              for (var z = 0; z < tubes[tubeIndex].charactersMeshes.length; z++) {
+              /*for (var z = 0; z < tubes[tubeIndex].charactersMeshes.length; z++) {
               scene.remove(tubes[tubeIndex].charactersMeshes[z]);
-              }
+              scene.remove(tubes[tubeIndex].charactersMeshes[z]);
+              console.log(tubes[tubeIndex].charactersMeshes[z]);
+              }*/
+            } else {
+              console.error("NO CHARACTERMESHES");
             }
               
               deleteTubeRecursively(tube.uuid, sphere, false);
@@ -256,13 +260,14 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       };
 
       
-      const addGlobalSplice = (i, state) => {
+      const addGlobalSplice = (i, state, charactersMeshes) => {
         
         state.objects[i].tube.index = tubes.length;
         tubes.push(state.objects[i].tube);
+
         //state.objects[i].tube = state.objects[i].deletedTube;
 
-        changedTexts.push(state.objects[i].changedText);
+        changedTexts.push(true); // state.objects[i].changedText);
         allowRun.push(true);
         descriptions.push(state.objects[i].description);
         curves.push(state.objects[i].curve);
@@ -1053,9 +1058,9 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
       function deleteSphere() {
         
-        let sphere2Mesh = updatingTextObject.sphere2Mesh;
+        let sphere2Mesh = updatingTextObject;
         deletedItems = deleteSphereSub(updatingTextObject.uuid, []);
-        undoManager.deleteItem(updatingTextObject.uuid, deletedItems, updatingTextObject.sphere1Mesh.belongingHull, sphere2Mesh);
+        undoManager.deleteItem(updatingTextObject.uuid, deletedItems, updatingTextObject.sphere1Mesh.belongingHull, updatingTextObject);
 
         deleteTubeRecursively(updatingTextObject.uuid, sphere, false)
 
@@ -1065,30 +1070,25 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       function deleteSphereSub(uuid, deletedItems) {
         for (var i = 0; i < tubes.length; i++) {
           let tube = tubes[i];
-          console.log("TUBEE");
-          console.log(tube);
           if (tube.uuid == uuid) {
            
            
             let deletedMeshes = [];
             let charactersMeshes = texts[i];
+            consoli(charactersMeshes);
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
               deletedMeshes.push(charactersMeshes[z]);
             }
             
             scene.remove(tube.sphere2Mesh);
-            deletedMeshes.push(
+           /* deletedMeshes.push(
                 tube.sphere2Mesh
-              );
-              console.log("TUBE");
-              console.log(tube);
+              );*/
             scene.remove(tube);
-            deletedMeshes.push(tube);
+            //deletedMeshes.push(tube);
               
             if (tube.sphere2Mesh.belongingHull) {
-              console.log("TUBE.sphere2Mesh.belongingHull");
-              console.log(tube.sphere2Mesh.belongingHull);
               if (tube.sphere2Mesh.belongingHull.spheres) {
                 for (
                   var z = 0;
@@ -1106,7 +1106,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
                 }
               }
               scene.remove(tube.sphere2Mesh.belongingHull);
-              deletedMeshes.push(tube.sphere2Mesh.belongingHull);
+              //deletedMeshes.push(tube.sphere2Mesh.belongingHull);
              
             }
 
@@ -1121,8 +1121,6 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
               })
 
               deleteGlobalSplice(i);
-              console.log("DELTEDITEMS");
-              console.log(deletedItems);
 
 
             break;
@@ -1143,7 +1141,6 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
 
       window.addEventListener("click", () => {
-        console.log("RECURSIVERESIZINGG:"+recursiveResizing);
         if (recursiveResizing==true) return;
         if (isRotating == true) {
           console.log("ROTATING");
@@ -1266,6 +1263,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
             tube.index = i;
             texts[i] = charactersMeshes;
+            consoli(texts[i]);
             allowRun[i] = false;
             
             (function(i) {
@@ -1278,6 +1276,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           }
         }
 
+        
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
           charactersMeshes.forEach((characterMesh, index) => {
             let points = [];
@@ -1445,6 +1444,12 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           });
         }
       };
+      function consoli(meshes) {
+
+for (var i = 0; i < meshes.length; i++) {
+  console.log("myTYPE:"+meshes[i].geometry.type);
+}
+}
 
       
       animate();
@@ -1692,8 +1697,9 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           if (subSphere.tube.uuid == oldID) {
             for (var z = 0; z < subSphere.tube.charactersMeshes.length; z++) {
               scene.remove(subSphere.tube.charactersMeshes[z]);
+          
             }
-            //deleteGlobalSplice(subSphere.tube.index);
+            
             scene.remove(subSphere);
 
             if (tubeOnly == false) {
@@ -1706,6 +1712,14 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
           deleteTubeRecursively(oldID, subSphere, tubeOnly);
 
         }
+       
+      } else {
+        if (texts[sphere.tube.index]) {
+        let textContainer = texts[sphere.tube.index];
+        for (var z = 0; z < textContainer.length; z++) {
+              scene.remove(textContainer[z]);
+            }
+          }
        
       }
            

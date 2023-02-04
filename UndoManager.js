@@ -11,10 +11,8 @@ class UndoManager {
     }
 
     undo() {
-        console.log("UNDO CALLED");
         console.log(this.states.length);
         if (this.states.length < 1) return;
-        console.log("UPDATEUI CALLED");
         this.updateUI(this.states[this.states.length - 1]);
         this.states.pop();
     }
