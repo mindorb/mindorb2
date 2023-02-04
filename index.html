@@ -58,7 +58,9 @@
       window.onload = function () {
         document.getElementById("description").focus();
         document.getElementById('description').value=defaultValue;
+        
       };
+      var allowRun = [];
       let texts = [];
       var curves = [];
       let tubes = [];
@@ -249,6 +251,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       const deleteGlobalSplice = (i) => {
             tubes.splice(i, 1);
             changedTexts.splice(i, 1);
+            allowRun.splice(i, 1);
             descriptions.splice(i, 1);
             curves.splice(i, 1);
             texts.splice(i, 1);
@@ -260,6 +263,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
         state.objects[i].tube.index = tubes.length;
         tubes.push(state.objects[i].tube);
         changedTexts.push(state.objects[i].changedText);
+        allowRun.push(true);
         descriptions.push(state.objects[i].description);
         curves.push(state.objects[i].curve);
         texts.push(state.objects[i].text);
@@ -980,6 +984,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
         scene.add(tube);
         texts.push([]);
         changedTexts.push(false);
+        allowRun.push(true);
         curves.push(curve);
         descriptions.push(description);
 
@@ -1223,7 +1228,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             previousCheckIfTubeIsOnRightOrLeft[i] != currentTubeDirection ||
             changedTexts[i] == true
           ) {
-            
+            if (allowRun[i]) {
             changedTexts[i] = false;
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
@@ -1242,7 +1247,6 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             tube.description = description;
             tube.curve = curve;
             tube.charactersMeshes = charactersMeshes;
-            console.error("CHARacTERMESHES!");
             
             if (updatingTextObject) {
             updatingTextObject.charactersMeshes = charactersMeshes;
@@ -1250,8 +1254,17 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
             tube.index = i;
             texts[i] = charactersMeshes;
+            allowRun[i] = false;
+            
+            (function(i) {
+              setTimeout(function() { 
+                allowRun[i] = true;
+              }, Math.random() * 350);
+            })(i);
+              
             
           }
+        }
 
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
           charactersMeshes.forEach((characterMesh, index) => {
