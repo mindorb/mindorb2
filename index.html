@@ -46,6 +46,26 @@
         style="z-index: 100; border-radius: 0px solid; border-color: black"
         id="updateDelete"
         onclick="deleteSphere();"
+      />
+      <input
+        type="button"
+        value="Cut"
+        style="z-index: 100; border-radius: 0px solid; border-color: black"
+        id="updateDelete"
+        onclick="cutSphere();"
+      /> <input
+      type="button"
+      value="Copy"
+      style="z-index: 100; border-radius: 0px solid; border-color: black"
+      id="updateDelete"
+      onclick="copySphere();"
+    />
+      <input
+        type="button"
+        value="Paste"
+        style="z-index: 100; border-radius: 0px solid; border-color: black"
+        id="updateDelete"
+        onclick="pasteSphere();"
       /><input
         type="text"
         id="updateSelection"
@@ -94,6 +114,83 @@
       var currentUUID;
 
       var originalRadius = 0.2;
+      var copySpheres;
+      
+      function copySphere() {
+
+
+        console.log("COMPARISON");
+        console.log(updatingTextObject);
+          copySpheres = updatingTextObject.clone();
+          copySpheres.description = updatingTextObject.description;
+          copySpheres.sphere1Mesh = updatingTextObject.sphere1Mesh;
+          copySpheres.sphere2Mesh = updatingTextObject.sphere2Mesh;
+          
+
+          console.log(copySpheres);
+       
+
+      }
+
+      function pasteSphere() {
+        if (!copySpheres) {
+          alert('Please copy something first');
+        } else {
+          console.log(updatingTextObject);
+          if (!updatingTextObject.sphere2Mesh.belongingHull.spheres) updatingTextObject.sphere2Mesh.belongingHull.spheres=[];
+          updatingTextObject.sphere2Mesh.belongingHull.spheres.push(copySpheres);
+
+          
+let tube = copySpheres.clone();
+var matrix = new THREE.Matrix4();
+matrix.identity();
+tube.applyMatrix4(matrix);
+tube.matrix.set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+tube.geometry.translate(0, 0, 0);
+console.log(tube.geometry);
+
+let direction = new THREE.Vector3().subVectors(updatingTextObject.sphere2Mesh.position, updatingTextObject.sphere1Mesh.position);
+let distance = direction.length();
+direction.normalize();
+
+let group = new THREE.Group();
+
+let tubeGeometry = new THREE.CylinderGeometry(0.05, 0.05, distance, 32);
+let tubeMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+let tube2 = new THREE.Mesh(tubeGeometry, tubeMaterial);
+group.add(tube);
+
+let axis = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 0, 1), direction);
+axis.normalize();
+let angle = Math.acos(new THREE.Vector3(0, 0, 1).dot(direction));
+
+group.quaternion.setFromAxisAngle(axis, angle);
+
+group.position.copy(updatingTextObject.sphere1Mesh.position);
+
+let destinationPos = new THREE.Vector3().addVectors(group.position, direction.multiplyScalar(distance));
+group.position.copy(destinationPos);
+
+group  = addToGroup(copySpheres, group);
+
+scene.add(group);
+        }
+      }
+
+      function addToGroup(tube, group) {
+        console.error("TUBE");
+        console.error(tube);
+        let sphere2Mesh = tube.sphere2Mesh;
+        if ( (sphere2Mesh.belongingHull ) && (sphere2Mesh.belongingHull.spheres) ) {
+          for (var i = 0; i < sphere2Mesh.belongingHull.spheres.length; i++) {
+            group.add(sphere2Mesh.belongingHull.clone());
+            group.add(sphere2Mesh.belongingHull.spheres[i].tube.clone());
+
+            group = addToGroup(sphere2Mesh.belongingHull.spheres[i].tube, group);
+          }
+        }
+        return group;
+      }
       
       function updateUI(state) {
         console.log("TYPE:"+state.type);
@@ -315,7 +412,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
 
       setInterval(function() {
         clearOrphaned();
-      }, 1000);
+      }, 3000);
 
       controls.minPolarAngle = Math.PI / 4; // 45 degrees
       controls.maxPolarAngle = (3 * Math.PI) / 4; // 135 degrees
@@ -1820,7 +1917,6 @@ for (var i = 0; i < meshes.length; i++) {
       const clearOrphaned = () => {
         
         for (var i = 0; i < scene.children.length; i++) {
-          console.log(i);
           let deleted = false;
           /*if (scene.children[i].parentChild) {
             console.log("DELETED:");
@@ -1838,7 +1934,6 @@ for (var i = 0; i < meshes.length; i++) {
           }*/
 
             if (scene.children[i].deletedMesh==true) {
-              console.log("REMOVING "+i);
               scene.children[i].visible = false;
               scene.remove(scene.children[i]);
             }
