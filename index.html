@@ -117,6 +117,8 @@
       var originalRadius = 0.2;
       var copySpheres;
 
+      var groups = [];
+
       function copySphere() {
         console.log("COMPARISON");
         console.log(updatingTextObject);
@@ -155,6 +157,7 @@
           direction.normalize();
 
           let group = new THREE.Group();
+          groups.push(group);
 
           let tubeGeometry = new THREE.CylinderGeometry(
             0.05,
@@ -189,6 +192,7 @@
           group.scale.y = relativeValue;
           group.scale.z = relativeValue;
 
+          group.add(copySpheres.sphere2Mesh);
           group = addToGroup(copySpheres, group);
 
           scene.add(group);
@@ -197,13 +201,48 @@
 
       function addToGroup(tube, group) {
         let sphere2Mesh = tube.sphere2Mesh;
+
         if (sphere2Mesh.belongingHull && sphere2Mesh.belongingHull.spheres) {
           group.add(sphere2Mesh.belongingHull.clone());
+
           for (var i = 0; i < sphere2Mesh.belongingHull.spheres.length; i++) {
             group.add(sphere2Mesh.belongingHull.spheres[i].tube.clone());
             group.add(
               sphere2Mesh.belongingHull.spheres[i].tube.sphere2Mesh.clone()
             );
+
+            /** add to global variables for update in animate() **/
+            tubes.push(sphere2Mesh.belongingHull.spheres[i].tube.clone());
+            tubes[tubes.length - 1].sphere2Mesh = tube.sphere2Mesh;
+            tubes[tubes.length - 1].sphere1Mesh = tube.sphere1Mesh;
+            tubes[tubes.length - 1].description = tube.description;
+            if (tubes[tubes.length - 1].characterMeshes) {
+              for (
+                var x = 0;
+                x < tubes[tubes.length - 1].charactersMeshes.length;
+                x++
+              ) {
+                tubes[tubes.length - 1].charactersMeshes.splice(x, 1);
+              }
+            }
+
+            changedTexts.push(true);
+            allowRun.push(false);
+            descriptions.push(
+              sphere2Mesh.belongingHull.spheres[i].tube.description
+            );
+            console.log(sphere2Mesh.belongingHull.spheres[i].tube.curve);
+            console.log(sphere2Mesh.belongingHull.spheres[i].tube.description);
+
+            let start = sphere2Mesh.belongingHull.position.clone();
+            let end = sphere2Mesh.belongingHull.spheres[i].position.clone();
+            let curve = new THREE.LineCurve3(start, end);
+            tubes[tubes.length - 1].curve = curve;
+
+            curves.push(curve);
+            texts.push([]);
+            previousCheckIfTubeIsOnRightOrLeft.push(null);
+            /** End of global variables update **/
 
             group = addToGroup(
               sphere2Mesh.belongingHull.spheres[i].tube,
@@ -480,6 +519,7 @@
             object instanceof THREE.Mesh &&
             object.material.color.getHex() === 0xffffff
           ) {
+            console.log("HULL");
             if (event.altKey) {
               controls.enabled = false;
               movingHull = object;
@@ -652,6 +692,7 @@
           let originalCharactersMeshes = resizedObject.tube.charactersMeshes;
           scene.remove(resizedObject.tube);
           var tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+
           tube.description = originalDescription;
           tube.charactersMeshes = originalCharactersMeshes;
           tube.sphere1Mesh = resizedObject.tube.sphere1Mesh;
@@ -1286,6 +1327,7 @@
         renderer.render(scene, camera);
         var secondAlignerObject = null;
         var counter = 0;
+        console.log(i + " total: " + texts.length);
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
           //          let tubeGeometry = tubeGeometries[i];
@@ -1297,7 +1339,6 @@
           let opposite = false;
 
           let currentTubeDirection = checkIfTubeIsOnRightOrLeft(
-            //tubeGeometry.parameters.path.getPointAt(0.5)
             curve.getPointAt(0.5)
           );
 
@@ -1322,14 +1363,13 @@
           if (
             previousCheckIfTubeIsOnRightOrLeft[i] == null ||
             previousCheckIfTubeIsOnRightOrLeft[i] != currentTubeDirection ||
-            changedTexts[i] == true
+            changedTexts[i] == true ||
+            charactersMeshes.length == 0
           ) {
-            if (allowRun[i]) {
+            if (allowRun[i] == true || charactersMeshes.length == 0) {
               changedTexts[i] = false;
               for (let z = 0; z < charactersMeshes.length; z++) {
                 scene.remove(charactersMeshes[z]);
-                charactersMeshes[z].deletedMesh = true;
-                charactersMeshes[z].visible = false;
               }
 
               let myText = currentTubeDirection
@@ -1342,6 +1382,12 @@
                 startPosition,
                 endPosition
               );
+              console.log(
+                "CREATED CHARACTERMESH WITH " +
+                  charactersMeshes.length +
+                  " CHARACTERS"
+              );
+              console.log(charactersMeshes[0]);
               for (var w = 0; w < charactersMeshes.length; w++) {
                 charactersMeshes[w].parentChild = tube;
               }
@@ -1361,6 +1407,7 @@
               (function (i) {
                 setTimeout(function () {
                   allowRun[i] = true;
+                  console.log(i);
                 }, Math.random() * 350);
               })(i);
             }
@@ -1368,6 +1415,16 @@
 
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
           charactersMeshes.forEach((characterMesh, index) => {
+            /*if (Math.random() < 0.25) {
+              console.log(
+                "texts[" +
+                  i +
+                  "]: mesh " +
+                  index +
+                  "/" +
+                  charactersMeshes.length
+              );
+            }*/
             let points = [];
             var center = curve.getPointAt(0.75);
             let start = curve.getPointAt(0);
@@ -1521,8 +1578,25 @@
 
             characterMesh.lookAt(camera.position);
 
-            if (!scene.children.includes(characterMesh)) {
-              scene.add(characterMesh);
+            if (
+              characterMesh.parent == null ||
+              characterMesh.parent.type == "Scene"
+            ) {
+              if (!scene.children.includes(characterMesh)) {
+                scene.add(characterMesh);
+                console.log("SCENE.ADD");
+              }
+            } else {
+              let uuid = characterMesh.parent.uuid;
+              console.log("UUID:" + uuid);
+              for (var y = 0; y < groups.length; y++) {
+                console.log(groups[y].uuid + "==" + uuid);
+                if (groups[y].uuid == uuid) {
+                  console.error("GROUPS.ADD");
+                  groups[y].add(characterMesh);
+                  break;
+                }
+              }
             }
 
             //let line = new THREE.Line3(startPosition, endPosition);
@@ -1877,7 +1951,7 @@
 
       const clearOrphaned = () => {
         for (var i = 0; i < scene.children.length; i++) {
-          let deleted = false;
+          ///let deleted = false;
           /*if (scene.children[i].parentChild) {
                   console.log("DELETED:");
                   console.log(scene.children[i].parentChild.deletedMesh);
@@ -1893,8 +1967,9 @@
                   }
                 }*/
 
-          if (scene.children[i].deletedMesh == true) {
+          if (scene.children[i].deletedMesh === true) {
             scene.children[i].visible = false;
+            console.log("Removed " + scene.children[i]);
             scene.remove(scene.children[i]);
           }
         }
