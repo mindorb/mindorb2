@@ -34,7 +34,7 @@
         z-index: 100;
         border-radius: 0px solid;
         border-color: black;
-      "
+      " onclick="console.log(scene.children);"
     />
     <div
       style="position: absolute; top: 50px; right: 50px; display: none"
@@ -66,6 +66,7 @@
       let tubes = [];
       let descriptions = [];
       let defaultValue ='HELLO WORLD';
+      let counter = 999;
       var isRotating = false;
       
       var keyCode17Disabled = true;
@@ -177,18 +178,21 @@
               scene.remove(hull);
             }
             let tube  = tubes.find(function (tube) {
-              return (
+              if (!tube) console.error("EMPTY TUBE");
+              console.log(tube);
+              return ( (tube) && (
                 tube.uuid == state.addedIDs[i]
-              );
+              ) );
             });
             if (tube) {
               
              
 
               let tubeIndex  = tubes.findIndex(function (tube) {
-              return (
+                if (!tube) console.error("EMPTY TUBE");
+                return ( (tube) && (
                 tube.uuid == state.addedIDs[i]
-              );
+              ) );
             });
 
             if (tubeIndex!=-1) {
@@ -222,6 +226,8 @@
 
           for (let i = 0; i < state.id.charactersMeshes.length; i++) {
             scene.remove(state.id.charactersMeshes[i]);
+            state.id.charactersMeshes[i].deletedMesh = true; 
+            state.id.charactersMeshes[i].visible = false;
           }
 
           descriptions[state.id.index] = state.text;
@@ -306,6 +312,10 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
       controls.addEventListener('end', function() {
        setTimeout(function() { isRotating = false; }, 250);
       });
+
+      setInterval(function() {
+        clearOrphaned();
+      }, 1000);
 
       controls.minPolarAngle = Math.PI / 4; // 45 degrees
       controls.maxPolarAngle = (3 * Math.PI) / 4; // 135 degrees
@@ -882,6 +892,8 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             
             for (let i = 0; i < updatingTextObject.charactersMeshes.length; i++) {
               scene.remove(updatingTextObject.charactersMeshes[i]);
+              updatingTextObject.charactersMeshes[i].deletedMesh = true; 
+              updatingTextObject.charactersMeshes[i].visible = false; 
             }
             
             changedTexts[updatingTextObject.index]=true;
@@ -1078,6 +1090,8 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             consoli(charactersMeshes);
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
+              charactersMeshes[z].deletedMesh = true;
+              charactersMeshes[z].visible = false; 
               deletedMeshes.push(charactersMeshes[z]);
             }
             
@@ -1179,7 +1193,7 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
                   [sphere.uuid, sphere.tube.uuid]                
                 );
               }
-              document.getElementById("description").value = defaultValue;
+              document.getElementById("description").value = counter++;;
             }
           }
         }
@@ -1241,18 +1255,23 @@ function addParentRadiuses(resizedObject, childAndParentRadiuses) {
             changedTexts[i] = false;
             for (let z = 0; z < charactersMeshes.length; z++) {
               scene.remove(charactersMeshes[z]);
+              charactersMeshes[z].deletedMesh = true;
+              charactersMeshes[z].visible = false; 
             }
 
             let myText = currentTubeDirection
               ? description
               : reverseString(description);
-            charactersMeshes = createCharacterMessages(
+            charactersMeshes = createCharacterMeshes(
               myText,
               curve,
               tube,
               startPosition,
               endPosition
             );
+            for (var w = 0; w < charactersMeshes.length; w++) {
+            charactersMeshes[w].parentChild = tube;
+            }
             tube.description = description;
             tube.curve = curve;
             tube.charactersMeshes = charactersMeshes;
@@ -1584,7 +1603,7 @@ for (var i = 0; i < meshes.length; i++) {
         return { point: null, usedRaycaster: true };
       }
 
-      function createCharacterMessages(
+      function createCharacterMeshes(
         text,
         curve,
         tube,
@@ -1694,11 +1713,15 @@ for (var i = 0; i < meshes.length; i++) {
         
         let subSphere = sphere.belongingHull.spheres[x];
         if (subSphere.tube) {
+          //subSphere.tube.deletedTube = true;
           if (subSphere.tube.uuid == oldID) {
+            if (subSphere.tube.charactersMeshes) {
             for (var z = 0; z < subSphere.tube.charactersMeshes.length; z++) {
               scene.remove(subSphere.tube.charactersMeshes[z]);
-          
+              subSphere.tube.charactersMeshes[z].deletedMesh = true; 
+              subSphere.tube.charactersMeshes[z].visible = false; 
             }
+          }
             
             scene.remove(subSphere);
 
@@ -1793,6 +1816,35 @@ for (var i = 0; i < meshes.length; i++) {
 
         return thirdPlane;
       };
+
+      const clearOrphaned = () => {
+        
+        for (var i = 0; i < scene.children.length; i++) {
+          console.log(i);
+          let deleted = false;
+          /*if (scene.children[i].parentChild) {
+            console.log("DELETED:");
+            console.log(scene.children[i].parentChild.deletedMesh);
+            if (scene.children[i].parentChild.deletedTube == true) {
+              deleted = true;
+              let charactersMeshes = scene.children[i].parentChild.charactersMeshes;
+              for (var x = 0; x < charactersMeshes.length; x++) {
+                console.log("X:"+x);
+                scene.children[i].parentChild.charactersMeshes[x].deletedMesh = true;
+                scene.children[i].parentChild.charactersMeshes[x].visible = false;
+                scene.remove(charactersMeshes[x]);
+              }
+            }            
+          }*/
+
+            if (scene.children[i].deletedMesh==true) {
+              console.log("REMOVING "+i);
+              scene.children[i].visible = false;
+              scene.remove(scene.children[i]);
+            }
+  
+        }
+      }
 
       document.onkeydown = KeyPress;
     </script>
