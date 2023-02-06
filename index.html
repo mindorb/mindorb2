@@ -198,12 +198,14 @@
           group.scale.z = relativeValue;
 
           let clonedSpheres = copySpheres;
-          console.log("SPHERE2MESH");
-          console.log(clonedSpheres.sphere2Mesh);
+
           let clonedSphere2Mesh = clonedSpheres.sphere2Mesh.clone();
+
           clonedSphere2Mesh.belongingHull =
             clonedSpheres.sphere2Mesh.belongingHull;
           clonedSphere2Mesh.parentHull = clonedSpheres.sphere2Mesh.parentHull;
+          console.log("CLONEDSPHERE2MESH");
+          console.log(clonedSphere2Mesh);
           group.add(clonedSphere2Mesh);
           group = addToGroup(copySpheres, group);
 
@@ -236,27 +238,46 @@
 
       function addToGroup(tube, group) {
         let sphere2Mesh = tube.sphere2Mesh;
-
+        console.log("TUBE");
+        console.log(tube);
         if (sphere2Mesh.belongingHull && sphere2Mesh.belongingHull.spheres) {
           let clonedHull = sphere2Mesh.belongingHull.clone();
           group.add(clonedHull);
           group.updateMatrixWorld();
           matrixWorld(clonedHull);
+          let clonedSphere = clonedHull.clone();
+
+          clonedSphere.parentSphere = tube.sphere2Mesh;
+          group.remove(clonedHull);
+          scene.add(clonedSphere);
 
           for (var i = 0; i < sphere2Mesh.belongingHull.spheres.length; i++) {
             let clonedTube = sphere2Mesh.belongingHull.spheres[i].tube.clone();
+            clonedTube.id = THREE.Math.generateUUID();
             group.add(clonedTube);
+            let sceneClonedTube = clonedTube.clone();
             group.updateMatrixWorld();
             matrixWorld(clonedTube);
+            group.remove(sceneClonedTube);
+            scene.add(sceneClonedTube);
 
             let clonedSphereMesh =
               sphere2Mesh.belongingHull.spheres[i].tube.sphere2Mesh.clone();
+            clonedSphereMesh.id = THREE.Math.generateUUID();
+            clonedSphereMesh.intersectable = true;
+            let sceneClonedSphereMesh = clonedSphereMesh.clone();
             group.add(clonedSphereMesh);
             group.updateMatrixWorld();
             matrixWorld(clonedSphereMesh);
+            group.remove(clonedSphereMesh);
+            scene.add(sceneClonedSphereMesh);
 
             /** add to global variables for update in animate() **/
-            tubes.push(sphere2Mesh.belongingHull.spheres[i].tube.clone());
+            let clonedTubeMesh =
+              sphere2Mesh.belongingHull.spheres[i].tube.clone();
+            clonedTubeMesh.id = THREE.Math.generateUUID();
+            clonedTubeMesh.intersectable = true;
+            tubes.push(clonedTubeMesh);
             tubes[tubes.length - 1].sphere2Mesh = tube.sphere2Mesh;
             tubes[tubes.length - 1].sphere1Mesh = tube.sphere1Mesh;
             tubes[tubes.length - 1].description = tube.description;
@@ -519,7 +540,7 @@
 
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
-
+        console.log("INTERSECTS:" + intersects.length);
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const object = intersection.object;
@@ -1308,6 +1329,7 @@
 
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
+        console.log("INTERSECTS.LENGTH:" + intersects.length);
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const object = intersection.object;
@@ -1350,7 +1372,7 @@
         renderer.render(scene, camera);
         var secondAlignerObject = null;
         var counter = 0;
-        console.log(i + " total: " + texts.length);
+        //console.log(i + " total: " + texts.length);
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
           //          let tubeGeometry = tubeGeometries[i];
@@ -1405,12 +1427,12 @@
                 startPosition,
                 endPosition
               );
-              console.log(
+              /*console.log(
                 "CREATED CHARACTERMESH WITH " +
                   charactersMeshes.length +
                   " CHARACTERS"
               );
-              console.log(charactersMeshes[0]);
+              console.log(charactersMeshes[0]);*/
               for (var w = 0; w < charactersMeshes.length; w++) {
                 charactersMeshes[w].parentChild = tube;
               }
