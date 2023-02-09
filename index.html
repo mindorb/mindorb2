@@ -133,12 +133,13 @@
         console.log(copySpheres);
       }
 
-      function setTubeParameters(tube, originalDescription, originalCharactersMeshes, resizedObject) {
+      function setTubeParameters(tube, originalDescription, originalCharactersMeshes, resizedObject, curve) {
           tube.description = originalDescription;
           tube.charactersMeshes = originalCharactersMeshes;
           tube.sphere1Mesh = resizedObject.tube.sphere1Mesh;
           tube.sphere2Mesh = resizedObject.tube.sphere2Mesh;
           tube.index = resizedObject.tube.index;
+          tube.curve = curve;
           return tube;
       }
 
@@ -242,20 +243,20 @@
           console.log(updatingTextObject);
           console.log("COPYTUBE");
           console.log(copyTube);
-          tube = setTubeParameters(tube, copyTube.description, copyTube.charactersMeshes, copySpheres);
+          tube = setTubeParameters(tube, copyTube.description, copyTube.charactersMeshes, copySpheres, copyTube.curve.clone());
           
-          if (!updatingTextObject.tube.sphere2Mesh.belongingHull.spheres)
-            updatingTextObject.tube.sphere2Mesh.belongingHull.spheres = [];
+          if (!clonedSphere2Mesh.belongingHull.spheres)
+            clonedSphere2Mesh.belongingHull.spheres = [];
             let clonedCopySpheres = copySpheres.clone();
             let belongingHull = null;
             console.log(updatingTextObject);
             clonedCopySpheres = setSphereParameters(copySpheres, updatingTextObject, belongingHull, tube);
-          updatingTextObject.tube.sphere2Mesh.belongingHull.spheres.push(
+          clonedSphere2Mesh.belongingHull.spheres.push(
             clonedCopySpheres
             
           );
 
-          group = addToGroup(tube, group);
+          group = addToGroup(copySpheres, group);
 
           matrixWorld(tube); // Place the tube into its new position
 
@@ -295,8 +296,7 @@
         mesh.scale.copy(scale);
       }
 
-      function addToGroup(tube, group) {
-        let sphere2Mesh = tube.sphere2Mesh;
+      function addToGroup(sphere2Mesh, group) {
         if (sphere2Mesh.belongingHull && sphere2Mesh.belongingHull.spheres) {
           console.log(sphere2Mesh.belongingHull);
           let clonedHull = sphere2Mesh.belongingHull.clone();
@@ -355,7 +355,7 @@
             /** End of global variables update **/
 
             group = addToGroup(
-              sphere2Mesh.belongingHull.spheres[i].tube,
+              sphere2Mesh.belongingHull.spheres[i],
               group
             );
           }
