@@ -123,13 +123,34 @@
       function copySphere() {
         console.log("COMPARISON");
         console.log(updatingTextObject);
-        copySpheres = updatingTextObject.clone();
-        copyTube = updatingTextObject.tube.clone();
-        copyTube.description = updatingTextObject.tube.description;
+        copySpheres = updatingTextObject;
+        copyTube = updatingTextObject.tube;
+        /*copyTube.description = updatingTextObject.tube.description;
         copyTube.sphere1Mesh = updatingTextObject.tube.sphere1Mesh;
-        copyTube.sphere2Mesh = updatingTextObject.tube.sphere2Mesh;
+        copyTube.sphere2Mesh = updatingTextObject.tube.sphere2Mesh;*/
 
         console.log(copySpheres);
+      }
+
+      function setTubeParameters(tube, originalDescription, originalCharactersMeshes, resizedObject) {
+          tube.description = originalDescription;
+          tube.charactersMeshes = originalCharactersMeshes;
+          tube.sphere1Mesh = resizedObject.tube.sphere1Mesh;
+          tube.sphere2Mesh = resizedObject.tube.sphere2Mesh;
+          tube.index = resizedObject.tube.index;
+          return tube;
+      }
+
+      function setHullParameters(hull, parentSphere) {
+        hull.parentSphere = sphere;
+        return hull;
+      }
+
+      function setSphereParameters(sphere, parentHull, belongingHull, tube) {
+        sphere.parentHull = parentHull;
+        sphere.belongingHull = belongingHull;
+        sphere.tube = tube;
+        return sphere;
       }
 
       function pasteSphere() {
@@ -137,11 +158,7 @@
           alert("Please copy something first");
         } else {
           console.log(updatingTextObject);
-          if (!updatingTextObject.tube.sphere2Mesh.belongingHull.spheres)
-            updatingTextObject.tube.sphere2Mesh.belongingHull.spheres = [];
-          updatingTextObject.tube.sphere2Mesh.belongingHull.spheres.push(
-            copySpheres
-          );
+          
 
           /** Copy the tube **/
           let tube = copyTube.clone();
@@ -153,6 +170,7 @@
           tube.applyMatrix4(matrix);
           tube.matrix.set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
           tube.geometry.translate(0, 0, 0);
+         
 
           /** Calculate the direction of the tube for future rotations **/
 
@@ -189,6 +207,8 @@
           );
           group.position.copy(destinationPos);
 
+          
+
           /** Make the group smaller so everything fits into its new location **/
 
           let relativeValue =
@@ -204,19 +224,9 @@
           console.log("clonedSpheres.sphere2Mesh");
           console.log(clonedSpheres.sphere2Mesh);
           let clonedSphere2Mesh = copyTube.sphere2Mesh.clone();
-          let clonedSphere1Mesh = copyTube.sphere1Mesh.clone();
+          
+          clonedSphere2Mesh = setSphereParameters(clonedSphere2Mesh, copyTube.sphere2Mesh.parentHull, copyTube.sphere2Mesh.belongingHull, tube);
 
-          clonedSphere2Mesh.tube = tube;
-
-          // Copy properties
-          clonedSphere2Mesh.belongingHull = copyTube.sphere2Mesh.belongingHull;
-          clonedSphere2Mesh.parentHull = copyTube.sphere2Mesh.parentHull;
-
-          clonedSphere1Mesh.belongingHull = copyTube.sphere1Mesh.belongingHull;
-          clonedSphere1Mesh.parentHull = copyTube.sphere1Mesh.parentHull;
-
-          console.log("CLONEDSPHERE2MESH");
-          console.log(clonedSphere2Mesh);
           group.add(clonedSphere2Mesh);
 
           group.updateMatrixWorld(); // Update the matrix world
@@ -229,9 +239,20 @@
           scene.add(cloneClonedSphere2Mesh);
           console.log("UPDATINGTEXTOBJECT");
           console.log(updatingTextObject);
-
-          tube.sphere2Mesh = clonedSphere2Mesh;
-          tube.sphere1Mesh = clonedSphere1Mesh;
+          console.log("COPYTUBE");
+          console.log(copyTube);
+          tube = setTubeParameters(tube, copyTube.description, copyTube.charactersMeshes, copySpheres);
+          
+          if (!updatingTextObject.tube.sphere2Mesh.belongingHull.spheres)
+            updatingTextObject.tube.sphere2Mesh.belongingHull.spheres = [];
+            let clonedCopySpheres = copySpheres.clone();
+            let belongingHull = null;
+            console.log(updatingTextObject);
+            clonedCopySpheres = setSphereParameters(copySpheres, updatingTextObject, belongingHull, tube);
+          updatingTextObject.tube.sphere2Mesh.belongingHull.spheres.push(
+            clonedCopySpheres
+            
+          );
 
           group = addToGroup(tube, group);
 
@@ -278,7 +299,9 @@
         if (sphere2Mesh.belongingHull && sphere2Mesh.belongingHull.spheres) {
           console.log(sphere2Mesh.belongingHull);
           let clonedHull = sphere2Mesh.belongingHull.clone();
-          clonedHull.parentSphere = sphere2Mesh.belongingHull.parentSphere;
+          //clonedHull.parentSphere = sphere2Mesh.belongingHull.parentSphere;
+          // setHullParameters(hull, parentSphere) {
+          clonedHull = setHullParameters(hull, sphere2Mesh.belongingHull);
           group.add(clonedHull);
           group.updateMatrixWorld();
           matrixWorld(clonedHull);
@@ -287,60 +310,38 @@
 
           group.remove(clonedHull);
 
-          clonedSphere.parentSphere = clonedHull.parentSphere;
+          clonedSphere = setHullParameters(clonedHull, clonedHull.parentSphere);
 
           scene.add(clonedSphere);
 
           for (var i = 0; i < sphere2Mesh.belongingHull.spheres.length; i++) {
             let clonedTube = sphere2Mesh.belongingHull.spheres[i].tube.clone();
-            clonedTube.id = THREE.Math.generateUUID();
             group.add(clonedTube);
             let sceneClonedTube = clonedTube.clone();
             group.updateMatrixWorld();
             matrixWorld(clonedTube);
             group.remove(sceneClonedTube);
+            // function setTubeParameters(tube, originalDescription, originalCharactersMeshes, resizedObject) {
+            sceneClonedTube = setTubeParameters(sphere2Mesh.belongingHull.spheres[i].tube, sphere2Mesh.belongingHull.spheres[i].tube.description, sphere2Mesh.belongingHull.spheres[i].tube.charactersMeshes, clonedSphere);
             scene.add(sceneClonedTube);
 
             let clonedSphereMesh =
               sphere2Mesh.belongingHull.spheres[i].tube.sphere2Mesh.clone();
-            clonedSphereMesh.parentHull =
-              sphere2Mesh.belongingHull.spheres[i].tube.sphere2Mesh.parentHull;
-            clonedSphereMesh.belongingHull =
-              sphere2Mesh.belongingHull.spheres[
-                i
-              ].tube.sphere2Mesh.belongingHull;
+              // function setSphereParameters(sphere, parentHull, belongingHull, tube) {
+            clonedSphereMesh = setSphereParameters(clonedSphereMesh, clonedSphere, clonedSphere.tube.sphere2Mesh.belongingHull, sceneClonedTube);
             group.add(clonedSphereMesh);
             group.updateMatrixWorld();
             matrixWorld(clonedSphereMesh);
             group.remove(clonedSphereMesh);
             scene.add(clonedSphereMesh);
 
-            /** add to global variables for update in animate() **/
-            let clonedTubeMesh =
-              sphere2Mesh.belongingHull.spheres[i].tube.clone();
-            clonedTubeMesh.id = THREE.Math.generateUUID();
-            clonedTubeMesh.intersectable = true;
-            tubes.push(clonedTubeMesh);
-            tubes[tubes.length - 1].sphere2Mesh = tube.sphere2Mesh;
-            tubes[tubes.length - 1].sphere1Mesh = tube.sphere1Mesh;
-            tubes[tubes.length - 1].description = tube.description;
-            /*if (tubes[tubes.length - 1].characterMeshes) {
-              for (
-                var x = 0;
-                x < tubes[tubes.length - 1].charactersMeshes.length;
-                x++
-              ) {
-                tubes[tubes.length - 1].charactersMeshes.splice(x, 1);
-              }
-            }*/
+            tubes.push(sceneClonedTube);
 
             changedTexts.push(true);
             allowRun.push(false);
             descriptions.push(
               sphere2Mesh.belongingHull.spheres[i].tube.description
             );
-            console.log(sphere2Mesh.belongingHull.spheres[i].tube.curve);
-            console.log(sphere2Mesh.belongingHull.spheres[i].tube.description);
 
             let start = sphere2Mesh.belongingHull.position.clone();
             let end = sphere2Mesh.belongingHull.spheres[i].position.clone();
@@ -865,7 +866,7 @@
             bigSphere.position.y + newRadius * Math.sin(theta) * Math.sin(phi),
             bigSphere.position.z + newRadius * Math.cos(theta)
           );
-          highlight(bigSphere);
+          //highlight(bigSphere);
           let originalDescription = bigSphere.spheres[i].tube.description;
           let originalCharactersMeshes =
             bigSphere.spheres[i].tube.charactersMeshes;
