@@ -143,8 +143,9 @@
           return tube;
       }
 
-      function setHullParameters(hull, parentSphere) {
+      function setHullParameters(hull, parentSphere, tube) {
         hull.parentSphere = sphere;
+        hull.tube = tube;
         return hull;
       }
 
@@ -152,6 +153,9 @@
         sphere.parentHull = parentHull;
         sphere.belongingHull = belongingHull;
         sphere.tube = tube;
+        sphere.tube.sphere1Mesh = tube.clonedSphere1Mesh;
+        sphere.tube.sphere2Mesh = tube.clonedSphere2Mesh;
+        sphere.tube.index = tube.index;
         return sphere;
       }
 
@@ -188,7 +192,7 @@
           let group = new THREE.Group();
           groups.push(group);
 
-          group.add(tube); // Add the tube to the group
+         
 
           /** Find the correct angle to rotate the group **/
 
@@ -220,39 +224,41 @@
           group.scale.x = relativeValue;
           group.scale.y = relativeValue;
           group.scale.z = relativeValue;
-
+          group.add(tube); // Add the tube to the group
+          group.updateMatrixWorld(); // Update the matrix world
+          matrixWorld(tube);
+          group.remove(tube);
+          scene.add(tube);
           let clonedSpheres = copySpheres;
 
           console.log("clonedSpheres.sphere2Mesh");
           console.log(clonedSpheres.sphere2Mesh);
-          let clonedSphere2Mesh = copyTube.sphere2Mesh.clone();
           
-          clonedSphere2Mesh = setSphereParameters(clonedSphere2Mesh, copyTube.sphere2Mesh.parentHull, copyTube.sphere2Mesh.belongingHull, tube);
+          let clonedSphere = copySpheres.clone();
+          clonedSphere = setSphereParameters(clonedSphere, copySpheres.parentHull, copySpheres.belongingHull, tube);
 
+          let clonedSphere2Mesh = clonedSphere.tube.sphere2Mesh;
+          
           group.add(clonedSphere2Mesh);
 
           group.updateMatrixWorld(); // Update the matrix world
-          matrixWorld(clonedSphere2Mesh);
-          let cloneClonedSphere2Mesh = clonedSphere2Mesh.clone();
-          cloneClonedSphere2Mesh.belongingHull =
-            clonedSphere2Mesh.belongingHull;
-          cloneClonedSphere2Mesh.parentHull = clonedSphere2Mesh.parentHull;
-          group.remove(clonedSphere2Mesh);
-          scene.add(cloneClonedSphere2Mesh);
+          matrixWorld(clonedSphere);
+          let cloneClonedSphere = clonedSphere.clone();
+          cloneClonedSphere = setSphereParameters(clonedSphere, clonedSphere.parentHull, clonedSphere.belongingHull, clonedSphere.tube);
+          group.remove(clonedSphere);
+          scene.add(cloneClonedSphere);
           console.log("UPDATINGTEXTOBJECT");
           console.log(updatingTextObject);
           console.log("COPYTUBE");
           console.log(copyTube);
-          tube = setTubeParameters(tube, copyTube.description, copyTube.charactersMeshes, copySpheres, copyTube.curve.clone());
           
-          if (!clonedSphere2Mesh.belongingHull.spheres)
-            clonedSphere2Mesh.belongingHull.spheres = [];
-            let clonedCopySpheres = copySpheres.clone();
-            let belongingHull = null;
-            console.log(updatingTextObject);
-            clonedCopySpheres = setSphereParameters(copySpheres, updatingTextObject, belongingHull, tube);
-          clonedSphere2Mesh.belongingHull.spheres.push(
-            clonedCopySpheres
+          tube = setTubeParameters(tube, copyTube.description, copyTube.charactersMeshes, clonedSphere, copyTube.curve.clone());
+          console.log("clonedSPhere");
+          console.log(clonedSphere);
+          if (!clonedSphere.belongingHull.spheres)
+            clonedSphere.belongingHull.spheres = [];
+            clonedSphere.belongingHull.spheres.push(
+            clonedSphere
             
           );
 
@@ -302,7 +308,7 @@
           let clonedHull = sphere2Mesh.belongingHull.clone();
           //clonedHull.parentSphere = sphere2Mesh.belongingHull.parentSphere;
           // setHullParameters(hull, parentSphere) {
-          clonedHull = setHullParameters(hull, sphere2Mesh.belongingHull);
+          clonedHull = setHullParameters(clonedHull, sphere2Mesh.belongingHull, sphere2Mesh.belongingHull.tube);
           group.add(clonedHull);
           group.updateMatrixWorld();
           matrixWorld(clonedHull);
@@ -311,7 +317,7 @@
 
           group.remove(clonedHull);
 
-          clonedSphere = setHullParameters(clonedHull, clonedHull.parentSphere);
+          clonedSphere = setHullParameters(clonedHull, clonedHull.parentSphere, clonedHull.tube);
 
           scene.add(clonedSphere);
 
@@ -793,6 +799,10 @@
           tube.index = resizedObject.tube.index;
           // Position and rotate the cylinder to match the curve
           var quaternion = new THREE.Quaternion();
+          console.log("resizedObject.tube.sphere1Mesh.position");
+          console.log(resizedObject.tube.sphere1Mesh.position);
+          console.log("resizedObject.tube.sphere2Mesh.position");
+          console.log(resizedObject.tube.sphere2Mesh.position);
           quaternion.setFromUnitVectors(
             new THREE.Vector3(0, 1, 0),
             new THREE.Vector3()
