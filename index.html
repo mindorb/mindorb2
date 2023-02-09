@@ -81,6 +81,7 @@
         document.getElementById("description").focus();
         document.getElementById("description").value = defaultValue;
       };
+      var increasing;
       var allowRun = [];
       var texts = [];
       var curves = [];
@@ -322,7 +323,7 @@
             matrixWorld(clonedTube);
             group.remove(sceneClonedTube);
             // function setTubeParameters(tube, originalDescription, originalCharactersMeshes, resizedObject) {
-            sceneClonedTube = setTubeParameters(sphere2Mesh.belongingHull.spheres[i].tube, sphere2Mesh.belongingHull.spheres[i].tube.description, sphere2Mesh.belongingHull.spheres[i].tube.charactersMeshes, clonedSphere);
+            sceneClonedTube = setTubeParameters(sceneClonedTube, sphere2Mesh.belongingHull.spheres[i].tube.description, sphere2Mesh.belongingHull.spheres[i].tube.charactersMeshes, clonedSphere);
             scene.add(sceneClonedTube);
 
             let clonedSphereMesh =
@@ -673,7 +674,14 @@
 
         let isHullVisible = false;
         let maxChildSphereRadius;
-        let increasing = newRadius > prevNewRadius ? true : false;
+        
+        if (Math.abs(newRadius - prevNewRadius) > 0.02) {
+
+        increasing = newRadius > prevNewRadius ? true : false;
+        }
+        prevNewRadius = newRadius;
+        prevNewRadiuses[currentUUID] = newRadius;
+      
 
         if (isResizing) {
           if (!resizedObject.parentHull) return;
@@ -742,14 +750,10 @@
             }
           }
 
-          prevNewRadius = newRadius;
-          prevNewRadiuses[currentUUID] = newRadius;
           resizedObject.scale.x = newRadius;
           resizedObject.scale.y = newRadius;
           resizedObject.scale.z = newRadius;
         } else {
-          prevNewRadius = newRadius;
-          prevNewRadiuses[currentUUID] = newRadius;
           resizedObject.scale.x = newRadius;
           resizedObject.scale.y = newRadius;
           resizedObject.scale.z = newRadius;
@@ -848,6 +852,7 @@
       }
 
       function changeSpheres(bigSphere, newRadius, doDelete) {
+        
         if (!bigSphere.spheres) return;
         for (let i = 0; i < bigSphere.spheres.length; i++) {
           let smallSphere = bigSphere.spheres[i].clone();
