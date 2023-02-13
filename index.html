@@ -116,7 +116,6 @@
 
       var originalRadius = 0.2;
       var copySpheres;
-      var copyTube;
 
       var groups = [];
 
@@ -124,10 +123,9 @@
         console.log("COMPARISON");
         console.log(updatingTextObject);
         copySpheres = updatingTextObject.clone();
-        copyTube = updatingTextObject.tube.clone();
-        copyTube.description = updatingTextObject.tube.description;
-        copyTube.sphere1Mesh = updatingTextObject.tube.sphere1Mesh;
-        copyTube.sphere2Mesh = updatingTextObject.tube.sphere2Mesh;
+        copySpheres.description = updatingTextObject.description;
+        copySpheres.sphere1Mesh = updatingTextObject.sphere1Mesh;
+        copySpheres.sphere2Mesh = updatingTextObject.sphere2Mesh;
 
         console.log(copySpheres);
       }
@@ -137,14 +135,14 @@
           alert("Please copy something first");
         } else {
           console.log(updatingTextObject);
-          if (!updatingTextObject.tube.sphere2Mesh.belongingHull.spheres)
-            updatingTextObject.tube.sphere2Mesh.belongingHull.spheres = [];
-          updatingTextObject.tube.sphere2Mesh.belongingHull.spheres.push(
+          if (!updatingTextObject.sphere2Mesh.belongingHull.spheres)
+            updatingTextObject.sphere2Mesh.belongingHull.spheres = [];
+          updatingTextObject.sphere2Mesh.belongingHull.spheres.push(
             copySpheres
           );
 
           /** Copy the tube **/
-          let tube = copyTube.clone();
+          let tube = copySpheres.clone();
           var matrix = new THREE.Matrix4();
 
           /** first reset the matrix so the future rotations take effect **/
@@ -157,8 +155,8 @@
           /** Calculate the direction of the tube for future rotations **/
 
           let direction = new THREE.Vector3().subVectors(
-            updatingTextObject.tube.sphere2Mesh.position,
-            updatingTextObject.tube.sphere1Mesh.position
+            updatingTextObject.sphere2Mesh.position,
+            updatingTextObject.sphere1Mesh.position
           );
           let distance = direction.length();
           direction.normalize();
@@ -181,7 +179,7 @@
 
           group.quaternion.setFromAxisAngle(axis, angle);
 
-          group.position.copy(updatingTextObject.tube.sphere1Mesh.position);
+          group.position.copy(updatingTextObject.sphere1Mesh.position);
 
           let destinationPos = new THREE.Vector3().addVectors(
             group.position,
@@ -192,54 +190,30 @@
           /** Make the group smaller so everything fits into its new location **/
 
           let relativeValue =
-            getScaledRadius(updatingTextObject.tube.sphere2Mesh.belongingHull) /
-            getScaledRadius(updatingTextObject.tube.sphere1Mesh.belongingHull);
+            getScaledRadius(updatingTextObject.sphere2Mesh.belongingHull) /
+            getScaledRadius(updatingTextObject.sphere1Mesh.belongingHull);
 
           group.scale.x = relativeValue;
           group.scale.y = relativeValue;
           group.scale.z = relativeValue;
 
           let clonedSpheres = copySpheres;
-
-          console.log("clonedSpheres.sphere2Mesh");
+          console.log("SPHERE2MESH");
           console.log(clonedSpheres.sphere2Mesh);
-          let clonedSphere2Mesh = copyTube.sphere2Mesh.clone();
-          let clonedSphere1Mesh = copyTube.sphere1Mesh.clone();
-
-          clonedSphere2Mesh.tube = tube;
-
-          // Copy properties
-          clonedSphere2Mesh.belongingHull = copyTube.sphere2Mesh.belongingHull;
-          clonedSphere2Mesh.parentHull = copyTube.sphere2Mesh.parentHull;
-
-          clonedSphere1Mesh.belongingHull = copyTube.sphere1Mesh.belongingHull;
-          clonedSphere1Mesh.parentHull = copyTube.sphere1Mesh.parentHull;
-
-          console.log("CLONEDSPHERE2MESH");
-          console.log(clonedSphere2Mesh);
+          let clonedSphere2Mesh = clonedSpheres.sphere2Mesh.clone();
+          clonedSphere2Mesh.belongingHull =
+            clonedSpheres.sphere2Mesh.belongingHull;
+          clonedSphere2Mesh.parentHull = clonedSpheres.sphere2Mesh.parentHull;
           group.add(clonedSphere2Mesh);
+          group = addToGroup(copySpheres, group);
 
           group.updateMatrixWorld(); // Update the matrix world
           matrixWorld(clonedSphere2Mesh);
-          let cloneClonedSphere2Mesh = clonedSphere2Mesh.clone();
-          cloneClonedSphere2Mesh.belongingHull =
-            clonedSphere2Mesh.belongingHull;
-          cloneClonedSphere2Mesh.parentHull = clonedSphere2Mesh.parentHull;
-          group.remove(clonedSphere2Mesh);
-          scene.add(cloneClonedSphere2Mesh);
-          console.log("UPDATINGTEXTOBJECT");
-          console.log(updatingTextObject);
-
-          tube.sphere2Mesh = clonedSphere2Mesh;
-          tube.sphere1Mesh = clonedSphere1Mesh;
-
-          group = addToGroup(tube, group);
-
           matrixWorld(tube); // Place the tube into its new position
 
-          /** Reset the group **/
+          /** There is a small sphere, copy it (you can leave that out of the processing) **/
 
-          console.log(updatingTextObject);
+          /** Reset the group **/
 
           group.position.set(0, 0, 0);
           group.rotation.set(0, 0, 0);
@@ -248,19 +222,6 @@
           group.scale.z = 1;
           scene.add(group);
         }
-      }
-
-      function highlight(mesh) {
-        // Save the original color of the mesh
-        var originalColor = mesh.material.color.getHex();
-
-        // Change the color of the mesh to yellow
-        mesh.material.color.setHex(0xffff00);
-
-        // Revert the color of the mesh back to the original color after 3 seconds
-        setTimeout(function () {
-          mesh.material.color.setHex(originalColor);
-        }, 3000);
       }
 
       function matrixWorld(mesh) {
@@ -275,52 +236,27 @@
 
       function addToGroup(tube, group) {
         let sphere2Mesh = tube.sphere2Mesh;
+
         if (sphere2Mesh.belongingHull && sphere2Mesh.belongingHull.spheres) {
-          console.log(sphere2Mesh.belongingHull);
           let clonedHull = sphere2Mesh.belongingHull.clone();
-          clonedHull.parentSphere = sphere2Mesh.belongingHull.parentSphere;
           group.add(clonedHull);
           group.updateMatrixWorld();
           matrixWorld(clonedHull);
-          // Do another clone for this to work!!!
-          let clonedSphere = clonedHull.clone();
-
-          group.remove(clonedHull);
-
-          clonedSphere.parentSphere = clonedHull.parentSphere;
-
-          scene.add(clonedSphere);
 
           for (var i = 0; i < sphere2Mesh.belongingHull.spheres.length; i++) {
             let clonedTube = sphere2Mesh.belongingHull.spheres[i].tube.clone();
-            clonedTube.id = THREE.Math.generateUUID();
             group.add(clonedTube);
-            let sceneClonedTube = clonedTube.clone();
             group.updateMatrixWorld();
             matrixWorld(clonedTube);
-            group.remove(sceneClonedTube);
-            scene.add(sceneClonedTube);
 
             let clonedSphereMesh =
               sphere2Mesh.belongingHull.spheres[i].tube.sphere2Mesh.clone();
-            clonedSphereMesh.parentHull =
-              sphere2Mesh.belongingHull.spheres[i].tube.sphere2Mesh.parentHull;
-            clonedSphereMesh.belongingHull =
-              sphere2Mesh.belongingHull.spheres[
-                i
-              ].tube.sphere2Mesh.belongingHull;
             group.add(clonedSphereMesh);
             group.updateMatrixWorld();
             matrixWorld(clonedSphereMesh);
-            group.remove(clonedSphereMesh);
-            scene.add(clonedSphereMesh);
 
             /** add to global variables for update in animate() **/
-            let clonedTubeMesh =
-              sphere2Mesh.belongingHull.spheres[i].tube.clone();
-            clonedTubeMesh.id = THREE.Math.generateUUID();
-            clonedTubeMesh.intersectable = true;
-            tubes.push(clonedTubeMesh);
+            tubes.push(sphere2Mesh.belongingHull.spheres[i].tube.clone());
             tubes[tubes.length - 1].sphere2Mesh = tube.sphere2Mesh;
             tubes[tubes.length - 1].sphere1Mesh = tube.sphere1Mesh;
             tubes[tubes.length - 1].description = tube.description;
@@ -583,7 +519,7 @@
 
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
-        console.log("INTERSECTS:" + intersects.length);
+
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const object = intersection.object;
@@ -726,7 +662,6 @@
               return;
             }
           } else {
-            console.log(resizedObject);
             if (resizedObject.parentSphere.parentHull) {
               if (
                 getScaledRadius(resizedObject) >
@@ -865,7 +800,7 @@
             bigSphere.position.y + newRadius * Math.sin(theta) * Math.sin(phi),
             bigSphere.position.z + newRadius * Math.cos(theta)
           );
-          highlight(bigSphere);
+
           let originalDescription = bigSphere.spheres[i].tube.description;
           let originalCharactersMeshes =
             bigSphere.spheres[i].tube.charactersMeshes;
@@ -1090,22 +1025,21 @@
           let description = document.getElementById("updateSelection").value;
 
           if (previousDescriptionCheck != description) {
-            undoManager.changeItemText(updatingTextObject.tube, description);
+            undoManager.changeItemText(updatingTextObject, description);
 
             for (
               let i = 0;
-              i < updatingTextObject.tube.charactersMeshes.length;
+              i < updatingTextObject.charactersMeshes.length;
               i++
             ) {
-              scene.remove(updatingTextObject.tube.charactersMeshes[i]);
-              updatingTextObject.tube.charactersMeshes[i].deletedMesh = true;
-              updatingTextObject.tube.charactersMeshes[i].visible = false;
+              scene.remove(updatingTextObject.charactersMeshes[i]);
+              updatingTextObject.charactersMeshes[i].deletedMesh = true;
+              updatingTextObject.charactersMeshes[i].visible = false;
             }
 
-            changedTexts[updatingTextObject.tube.index] = true;
-            descriptions[updatingTextObject.tube.index] = description;
-            previousCheckIfTubeIsOnRightOrLeft[updatingTextObject.tube.index] =
-              null;
+            changedTexts[updatingTextObject.index] = true;
+            descriptions[updatingTextObject.index] = description;
+            previousCheckIfTubeIsOnRightOrLeft[updatingTextObject.index] = null;
             previousDescriptionCheck = description;
           }
         }
@@ -1250,7 +1184,7 @@
                 ) {
                   console.error(object);
                   if (object.tube) {
-                    updatingTextObject = object;
+                    updatingTextObject = object.tube;
                     document.getElementById("updateDIV").style.display =
                       "inline";
                     document.getElementById("updateSelection").focus();
@@ -1274,16 +1208,16 @@
       );
 
       function deleteSphere() {
-        //let sphere2Mesh = updatingTextObject.tube;
-        deletedItems = deleteSphereSub(updatingTextObject.tube.uuid, []);
+        let sphere2Mesh = updatingTextObject;
+        deletedItems = deleteSphereSub(updatingTextObject.uuid, []);
         undoManager.deleteItem(
-          updatingTextObject.tube.uuid,
+          updatingTextObject.uuid,
           deletedItems,
-          updatingTextObject.tube.sphere1Mesh.belongingHull,
-          updatingTextObject.tube
+          updatingTextObject.sphere1Mesh.belongingHull,
+          updatingTextObject
         );
 
-        deleteTubeRecursively(updatingTextObject.tube.uuid, sphere, false);
+        deleteTubeRecursively(updatingTextObject.uuid, sphere, false);
 
         document.getElementById("updateDIV").style.display = "none";
       }
@@ -1374,7 +1308,6 @@
 
         // Calculate the intersection between the mouse position and the objects in the scene
         const intersects = raycaster.intersectObjects(scene.children);
-        console.log("INTERSECTS.LENGTH:" + intersects.length);
         if (intersects.length > 0) {
           const intersection = intersects[0];
           const object = intersection.object;
@@ -1417,7 +1350,7 @@
         renderer.render(scene, camera);
         var secondAlignerObject = null;
         var counter = 0;
-        //console.log(i + " total: " + texts.length);
+        console.log(i + " total: " + texts.length);
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
           //          let tubeGeometry = tubeGeometries[i];
@@ -1472,12 +1405,12 @@
                 startPosition,
                 endPosition
               );
-              /*console.log(
+              console.log(
                 "CREATED CHARACTERMESH WITH " +
                   charactersMeshes.length +
                   " CHARACTERS"
               );
-              console.log(charactersMeshes[0]);*/
+              console.log(charactersMeshes[0]);
               for (var w = 0; w < charactersMeshes.length; w++) {
                 charactersMeshes[w].parentChild = tube;
               }
@@ -1485,9 +1418,9 @@
               tube.curve = curve;
               tube.charactersMeshes = charactersMeshes;
 
-              /*if (updatingTextObject.tube) {
-                updatingTextObject.tube.charactersMeshes = charactersMeshes;
-              }*/
+              if (updatingTextObject) {
+                updatingTextObject.charactersMeshes = charactersMeshes;
+              }
 
               tube.index = i;
               texts[i] = charactersMeshes;
