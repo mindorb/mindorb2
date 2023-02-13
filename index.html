@@ -117,6 +117,8 @@
       var originalRadius = 0.2;
       var copySpheres;
 
+      var highlighted = false;
+
       var groups = [];
 
       function copySphere() {
@@ -129,6 +131,8 @@
 
         console.log(copySpheres);
       }
+
+      let uuidMap = new Map();
 
       function pasteSphere() {
         if (!copySpheres) {
@@ -167,6 +171,21 @@
           groups.push(group);
 
           group.add(tube); // Add the tube to the group
+
+          tube.sphere2Mesh = updatingTextObject.sphere2Mesh;
+          tube.sphere1Mesh = updatingTextObject.sphere1Mesh;
+
+          let start = updatingTextObject.sphere1Mesh.position;
+          let end = updatingTextObject.sphere2Mesh.position;
+          let curve = new THREE.LineCurve3(start, end);
+
+          tube.curve = curve;
+
+          console.log("MYTUBE");
+          /*highlight(tube.sphere1Mesh);
+          highlight2(tube.sphere2Mesh);
+          highlight3(tube);*/
+          console.log(tube);
 
           /** Find the correct angle to rotate the group **/
 
@@ -210,9 +229,6 @@
           group.updateMatrixWorld(); // Update the matrix world
           matrixWorld(clonedSphere2Mesh);
           matrixWorld(tube); // Place the tube into its new position
-
-          /** There is a small sphere, copy it (you can leave that out of the processing) **/
-
           /** Reset the group **/
 
           group.position.set(0, 0, 0);
@@ -220,9 +236,176 @@
           group.scale.x = 1;
           group.scale.y = 1;
           group.scale.z = 1;
-          scene.add(group);
+          //scene.add(group);
+
+          addObjectsFromGroupToScene(group, scene);
+          for (let [oldUUID, newUUID] of uuidMap) {
+            let clonedObject = scene.getObjectByProperty("uuid", newUUID);
+            updateRelationships(clonedObject, uuidMap);
+            console.log("CLONEDOBJECT:");
+            console.log(clonedObject);
+            if (clonedObject.geometry.type == "CylinderGeometry") {
+              addTube(clonedObject);
+            }
+          }
         }
       }
+
+      function addTube(clonedObject) {
+        tubes.push(clonedObject);
+        console.log("PUSHING TUBE");
+        console.log(clonedObject);
+        changedTexts.push(true);
+        allowRun.push(true);
+        descriptions.push(clonedObject.description);
+        console.log("CLONED CURVE:" + clonedObject.curve);
+        curves.push(clonedObject.curve);
+        console.log("CLONED " + clonedObject.curve);
+        texts.push([]);
+        previousCheckIfTubeIsOnRightOrLeft.push(null);
+      }
+
+      function highlight(mesh) {
+        // Save the original color of the mesh
+        var originalColor = mesh.material.color.getHex();
+
+        // Change the color of the mesh to yellow
+        mesh.material.color.setHex(0xffff00);
+
+        // Revert the color of the mesh back to the original color after 3 seconds
+        setTimeout(function () {
+          mesh.material.color.setHex(originalColor);
+        }, 3000);
+      }
+      function highlight2(mesh) {
+        // Save the original color of the mesh
+        var originalColor = mesh.material.color.getHex();
+
+        // Change the color of the mesh to yellow
+        mesh.material.color.setHex(0xff0000);
+
+        // Revert the color of the mesh back to the original color after 3 seconds
+        setTimeout(function () {
+          mesh.material.color.setHex(originalColor);
+        }, 3000);
+      }
+
+      function highlight3(mesh) {
+        // Save the original color of the mesh
+        var originalColor = mesh.material.color.getHex();
+
+        // Change the color of the mesh to yellow
+        mesh.material.color.setHex(0x00ffff);
+
+        // Revert the color of the mesh back to the original color after 3 seconds
+        setTimeout(function () {
+          mesh.material.color.setHex(originalColor);
+        }, 3000);
+      }
+
+      function addObjectToScene(group, object, scene) {
+        let clonedObject = object.clone();
+
+        if (clonedObject.geometry.type == "CylinderGeometry") {
+          console.log("CLONING CLONEDOBJECT");
+          console.log(clonedObject);
+        }
+
+        let curve = null;
+        if (object.curve) {
+          curve = object.curve;
+        }
+        let description = null;
+        if (object.description) {
+          description = object.description;
+        }
+        let index = null;
+        if (object.index) {
+          index = object.index;
+        }
+
+        group.updateMatrixWorld();
+        matrixWorld(clonedObject);
+        scene.add(clonedObject);
+
+        let clonedObject2 = clonedObject.clone();
+
+        group.updateMatrixWorld();
+        matrixWorld(clonedObject2);
+        scene.add(clonedObject2);
+
+        scene.remove(clonedObject);
+
+        if (description != null) {
+          clonedObject2.description = description;
+        }
+        if (curve != null) {
+          console.error("SETTING CURVE TO " + curve);
+          clonedObject2.curve = curve;
+        }
+
+        uuidMap.set(object.uuid, clonedObject2.uuid);
+      }
+
+      function addObjectsFromGroupToScene(group, scene) {
+        // Loop over each object in the group
+        let children = [...group.children];
+        for (let i = 0; i < children.length; i++) {
+          let object = children[i];
+          addObjectToScene(group, object, scene);
+          group.remove(object);
+        }
+      }
+
+      function updateRelationships(object, uuidMap) {
+        let parentSphereUUID = object.parentSphere;
+        let sphere1MeshUUID = object.sphere1Mesh;
+        let sphere2MeshUUID = object.sphere2Mesh;
+        let parentHullUUID = object.parentHull;
+        let belongingHullUUID = object.belongingHull;
+        let tubeUUID = object.tube;
+
+        if (parentSphereUUID) {
+          object.parentSphere = uuidMap.get(parentSphereUUID);
+        }
+        if (sphere1MeshUUID) {
+          object.sphere1Mesh = uuidMap.get(sphere1MeshUUID);
+        }
+        if (sphere2MeshUUID) {
+          object.sphere2Mesh = uuidMap.get(sphere2MeshUUID);
+          console.log(object);
+          console.log("received sphere2Mesh:" + object.sphere2Mesh);
+        }
+        if (parentHullUUID) {
+          object.parentHull = uuidMap.get(parentHullUUID);
+        }
+        if (belongingHullUUID) {
+          object.belongingHull = uuidMap.get(belongingHullUUID);
+        }
+        if (tubeUUID) {
+          object.tube = uuidMap.get(tubeUUID);
+        }
+      }
+
+      /*
+        function addObjectsFromGroupToScene(group, scene) {
+          console.log("Clone ");
+          console.log(group.children);
+          let children = [...group.children];
+          for (let i = 0; i < children.length; i++) {
+            let object = children[i];
+            console.log("Cloning");
+            console.info(object);
+            let clonedObject = object.clone();
+            if (object instanceof THREE.SphereGeometry) {
+            } else if (object instanceof THREE.CylinderGeometry) {
+            }
+            group.updateMatrixWorld();
+            matrixWorld(clonedObject);
+            scene.add(clonedObject);
+            group.remove(object);
+          }
+        }*/
 
       function matrixWorld(mesh) {
         let position = new THREE.Vector3();
@@ -254,39 +437,6 @@
             group.add(clonedSphereMesh);
             group.updateMatrixWorld();
             matrixWorld(clonedSphereMesh);
-
-            /** add to global variables for update in animate() **/
-            tubes.push(sphere2Mesh.belongingHull.spheres[i].tube.clone());
-            tubes[tubes.length - 1].sphere2Mesh = tube.sphere2Mesh;
-            tubes[tubes.length - 1].sphere1Mesh = tube.sphere1Mesh;
-            tubes[tubes.length - 1].description = tube.description;
-            /*if (tubes[tubes.length - 1].characterMeshes) {
-              for (
-                var x = 0;
-                x < tubes[tubes.length - 1].charactersMeshes.length;
-                x++
-              ) {
-                tubes[tubes.length - 1].charactersMeshes.splice(x, 1);
-              }
-            }*/
-
-            changedTexts.push(true);
-            allowRun.push(false);
-            descriptions.push(
-              sphere2Mesh.belongingHull.spheres[i].tube.description
-            );
-            console.log(sphere2Mesh.belongingHull.spheres[i].tube.curve);
-            console.log(sphere2Mesh.belongingHull.spheres[i].tube.description);
-
-            let start = sphere2Mesh.belongingHull.position.clone();
-            let end = sphere2Mesh.belongingHull.spheres[i].position.clone();
-            let curve = new THREE.LineCurve3(start, end);
-            tubes[tubes.length - 1].curve = curve;
-
-            curves.push(curve);
-            texts.push([]);
-            previousCheckIfTubeIsOnRightOrLeft.push(null);
-            /** End of global variables update **/
 
             group = addToGroup(
               sphere2Mesh.belongingHull.spheres[i].tube,
@@ -324,23 +474,23 @@
 
           /*let parentRadiuses = state.childAndParentRadiuses;
 
-                for (var i = 0; i < state.childAndParentRadiuses.length; i++) {
-                  let sphere = hullParentSpheres.find(function (sphere) {
-                  return (
-                    sphere.uuid == hullParentSpheres[i].uuid
-                  );
-                });
+                  for (var i = 0; i < state.childAndParentRadiuses.length; i++) {
+                    let sphere = hullParentSpheres.find(function (sphere) {
+                    return (
+                      sphere.uuid == hullParentSpheres[i].uuid
+                    );
+                  });
 
-                if (sphere) {
-                  sphere.scale.x = state.childAndParentRadiuses[i].scale;
-                  sphere.scale.y = state.childAndParentRadiuses[i].scale;
-                  sphere.scale.z = state.childAndParentRadiuses[i].scale;
-                  sphere.belongingHull.scale.x = state.childAndParentRadiuses[i].hullRadius;
-                  sphere.belongingHull.scale.y = state.childAndParentRadiuses[i].hullRadius;
-                  sphere.belongingHull.scale.z = state.childAndParentRadiuses[i].hullRadius;
-                }
+                  if (sphere) {
+                    sphere.scale.x = state.childAndParentRadiuses[i].scale;
+                    sphere.scale.y = state.childAndParentRadiuses[i].scale;
+                    sphere.scale.z = state.childAndParentRadiuses[i].scale;
+                    sphere.belongingHull.scale.x = state.childAndParentRadiuses[i].hullRadius;
+                    sphere.belongingHull.scale.y = state.childAndParentRadiuses[i].hullRadius;
+                    sphere.belongingHull.scale.z = state.childAndParentRadiuses[i].hullRadius;
+                  }
 
-                }*/
+                  }*/
         } else if (state.type == "add") {
           for (var i = 0; i < state.addedIDs.length; i++) {
             let mySphere = hullParentSpheres.find(function (mySphere) {
@@ -375,10 +525,10 @@
               if (tubeIndex != -1) {
                 if (tubes[tubeIndex].charactersMeshes) {
                   /*for (var z = 0; z < tubes[tubeIndex].charactersMeshes.length; z++) {
-                    scene.remove(tubes[tubeIndex].charactersMeshes[z]);
-                    scene.remove(tubes[tubeIndex].charactersMeshes[z]);
-                    console.log(tubes[tubeIndex].charactersMeshes[z]);
-                    }*/
+                      scene.remove(tubes[tubeIndex].charactersMeshes[z]);
+                      scene.remove(tubes[tubeIndex].charactersMeshes[z]);
+                      console.log(tubes[tubeIndex].charactersMeshes[z]);
+                      }*/
                 } else {
                   console.error("NO CHARACTERMESHES");
                 }
@@ -807,8 +957,8 @@
           scene.remove(bigSphere.spheres[i].tube);
           let oldID = bigSphere.spheres[i].tube.uuid;
           /*if (doDelete) {
-                  removeTubeID(oldID, tube);
-                }*/
+                    removeTubeID(oldID, tube);
+                  }*/
 
           let start = bigSphere.position;
           let end = bigSphere.spheres[i].position;
@@ -1079,6 +1229,7 @@
             .subVectors(sphere.position, hull.position)
             .normalize();
 
+          console.log("sphereText");
           sphere.tube = addText(
             document.getElementById("description").value,
             sphere.parentHull.parentSphere,
@@ -1149,6 +1300,7 @@
         scene.add(textOrientation);
 
         tube.index = tubes.length;
+        tube.curve = curve;
         tubes.push(tube);
 
         //tubeGeometries.push(tubeGeometry);
@@ -1238,8 +1390,8 @@
 
             scene.remove(tube.sphere2Mesh);
             /* deletedMeshes.push(
-                      tube.sphere2Mesh
-                    );*/
+                        tube.sphere2Mesh
+                      );*/
             scene.remove(tube);
             //deletedMeshes.push(tube);
 
@@ -1325,6 +1477,7 @@
               document.getElementById("description").style.border = "3px solid";
               document.getElementById("description").style.borderColor = "red";
             } else {
+              console.log("addSphere");
               let sphere = addSphere(object);
               if (sphere != null) {
                 undoManager.addItem(sphere.uuid, "sphere", [
@@ -1350,7 +1503,6 @@
         renderer.render(scene, camera);
         var secondAlignerObject = null;
         var counter = 0;
-        console.log(i + " total: " + texts.length);
         for (var i = 0; i < texts.length; i++) {
           let charactersMeshes = texts[i];
           //          let tubeGeometry = tubeGeometries[i];
@@ -1364,6 +1516,14 @@
           let currentTubeDirection = checkIfTubeIsOnRightOrLeft(
             curve.getPointAt(0.5)
           );
+
+          /*if (!tube.sphere2Mesh) {
+            if (!highlighted) {
+              highlight3(tube);
+              highlighted = true;
+            }
+            return;
+          }*/
 
           myDirection = new THREE.Vector3()
             .subVectors(tube.sphere2Mesh.position, tube.sphere1Mesh.position)
@@ -1439,23 +1599,23 @@
           previousCheckIfTubeIsOnRightOrLeft[i] = currentTubeDirection;
           charactersMeshes.forEach((characterMesh, index) => {
             /*if (Math.random() < 0.25) {
-              console.log(
-                "texts[" +
-                  i +
-                  "]: mesh " +
-                  index +
-                  "/" +
-                  charactersMeshes.length
-              );
-            }*/
+                console.log(
+                  "texts[" +
+                    i +
+                    "]: mesh " +
+                    index +
+                    "/" +
+                    charactersMeshes.length
+                );
+              }*/
             let points = [];
             var center = curve.getPointAt(0.75);
             let start = curve.getPointAt(0);
             let end = curve.getPointAt(1);
 
             /*if (document.getElementById("showPlane").checked) {
-                    if (secondAlignerObject) scene.remove(secondAlignerObject);
-                  }*/
+                      if (secondAlignerObject) scene.remove(secondAlignerObject);
+                    }*/
 
             plane2 = createPlane(description, scene, start, end);
 
@@ -1649,7 +1809,7 @@
 
       function getScaledRadius(mesh) {
         /*let scale = mesh.scale;
-              let unscaledRadius = mesh.geometry.boundingSphere.radius;*/
+                let unscaledRadius = mesh.geometry.boundingSphere.radius;*/
         let scaledRadius = Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z); // * unscaledRadius;
         return scaledRadius;
       }
@@ -1941,10 +2101,10 @@
         //secondAlignerObject.position.copy(sphere1Position);
 
         /*if (document.getElementById("showPlane").checked) {
-                if (description == "123" || description == "asd") {
-                  scene.add(secondAlignerObject);
-                }
-              }*/
+                  if (description == "123" || description == "asd") {
+                    scene.add(secondAlignerObject);
+                  }
+                }*/
 
         let thirdPlane = new THREE.Plane(
           thirdPlaneGeometry.vertices[0],
@@ -1959,19 +2119,19 @@
         for (var i = 0; i < scene.children.length; i++) {
           ///let deleted = false;
           /*if (scene.children[i].parentChild) {
-                  console.log("DELETED:");
-                  console.log(scene.children[i].parentChild.deletedMesh);
-                  if (scene.children[i].parentChild.deletedTube == true) {
-                    deleted = true;
-                    let charactersMeshes = scene.children[i].parentChild.charactersMeshes;
-                    for (var x = 0; x < charactersMeshes.length; x++) {
-                      console.log("X:"+x);
-                      scene.children[i].parentChild.charactersMeshes[x].deletedMesh = true;
-                      scene.children[i].parentChild.charactersMeshes[x].visible = false;
-                      scene.remove(charactersMeshes[x]);
+                    console.log("DELETED:");
+                    console.log(scene.children[i].parentChild.deletedMesh);
+                    if (scene.children[i].parentChild.deletedTube == true) {
+                      deleted = true;
+                      let charactersMeshes = scene.children[i].parentChild.charactersMeshes;
+                      for (var x = 0; x < charactersMeshes.length; x++) {
+                        console.log("X:"+x);
+                        scene.children[i].parentChild.charactersMeshes[x].deletedMesh = true;
+                        scene.children[i].parentChild.charactersMeshes[x].visible = false;
+                        scene.remove(charactersMeshes[x]);
+                      }
                     }
-                  }
-                }*/
+                  }*/
 
           if (scene.children[i].deletedMesh === true) {
             scene.children[i].visible = false;
