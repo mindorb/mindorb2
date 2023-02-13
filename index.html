@@ -121,6 +121,8 @@
 
       var groups = [];
 
+      let increasing = true;
+
       function copySphere() {
         console.log("COMPARISON");
         console.log(updatingTextObject);
@@ -758,7 +760,10 @@
 
         let isHullVisible = false;
         let maxChildSphereRadius;
-        let increasing = newRadius > prevNewRadius ? true : false;
+
+        if (Math.abs(newRadius - prevNewRadius) > 0.02) {
+          increasing = newRadius > prevNewRadius ? true : false;
+        }
 
         if (isResizing) {
           if (!resizedObject.parentHull) return;
