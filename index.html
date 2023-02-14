@@ -176,7 +176,8 @@
 
           tube.sphere2Mesh = updatingTextObject.sphere2Mesh;
           tube.sphere1Mesh = updatingTextObject.sphere1Mesh;
-
+          tube.description = copySphere.description;
+          console.error("TUBE.DESCRIPTION:" + copySpheres.description);
           let start = updatingTextObject.sphere1Mesh.position;
           let end = updatingTextObject.sphere2Mesh.position;
           let curve = new THREE.LineCurve3(start, end);
@@ -241,11 +242,14 @@
           //scene.add(group);
 
           addObjectsFromGroupToScene(group, scene);
-          for (let [oldUUID, newUUID] of uuidMap) {
-            let clonedObject = scene.getObjectByProperty("uuid", newUUID);
+          for (let [oldUUID, newObject] of uuidMap) {
+            let clonedObject = scene.getObjectByProperty(
+              "uuid",
+              newObject.uuid
+            );
+
             updateRelationships(clonedObject, uuidMap);
-            console.log("CLONEDOBJECT:");
-            console.log(clonedObject);
+
             if (clonedObject.geometry.type == "CylinderGeometry") {
               addTube(clonedObject);
             }
@@ -260,6 +264,7 @@
         changedTexts.push(true);
         allowRun.push(true);
         descriptions.push(clonedObject.description);
+        console.log("CLONED DESCRIPTION:" + clonedObject.description);
         console.log("CLONED CURVE:" + clonedObject.curve);
         curves.push(clonedObject.curve);
         console.log("CLONED " + clonedObject.curve);
@@ -325,6 +330,30 @@
         if (object.index) {
           index = object.index;
         }
+        let sphere1Mesh = null;
+        if (object.sphere1Mesh) {
+          sphere1Mesh = object.sphere1Mesh;
+        }
+
+        let sphere2Mesh = null;
+        if (object.sphere2Mesh) {
+          sphere2Mesh = object.sphere2Mesh;
+        }
+
+        let belongingHull = null;
+        if (object.belongingHull) {
+          belongingHull = object.belongingHull;
+        }
+
+        let parentHull = null;
+        if (object.parentHull) {
+          parentHull = object.parentHull;
+        }
+
+        let parentSphere = null;
+        if (object.parentSphere) {
+          parentSphere = object.parentSphere;
+        }
 
         group.updateMatrixWorld();
         matrixWorld(clonedObject);
@@ -342,11 +371,29 @@
           clonedObject2.description = description;
         }
         if (curve != null) {
-          console.error("SETTING CURVE TO " + curve);
           clonedObject2.curve = curve;
         }
 
-        uuidMap.set(object.uuid, clonedObject2.uuid);
+        if (index != null) {
+          clonedObject2.index = index;
+        }
+        if (sphere1Mesh != null) {
+          clonedObject2.sphere1Mesh = sphere1Mesh;
+        }
+        if (sphere2Mesh != null) {
+          clonedObject2.sphere2Mesh = sphere2Mesh;
+        }
+        if (belongingHull != null) {
+          clonedObject2.belongingHull = belongingHull;
+        }
+        if (parentHull != null) {
+          clonedObject2.parentHull = parentHull;
+        }
+        if (parentSphere != null) {
+          clonedObject2.parentSphere = parentSphere;
+        }
+
+        uuidMap.set(object.uuid, clonedObject2);
       }
 
       function addObjectsFromGroupToScene(group, scene) {
@@ -360,54 +407,32 @@
       }
 
       function updateRelationships(object, uuidMap) {
-        let parentSphereUUID = object.parentSphere;
-        let sphere1MeshUUID = object.sphere1Mesh;
-        let sphere2MeshUUID = object.sphere2Mesh;
-        let parentHullUUID = object.parentHull;
-        let belongingHullUUID = object.belongingHull;
-        let tubeUUID = object.tube;
-
-        if (parentSphereUUID) {
-          object.parentSphere = uuidMap.get(parentSphereUUID);
+        if (object.parentSphere && uuidMap.has(object.parentSphere)) {
+          object.parentSphere = uuidMap.get(object.parentSphere);
         }
-        if (sphere1MeshUUID) {
-          object.sphere1Mesh = uuidMap.get(sphere1MeshUUID);
+        if (object.sphere1Mesh && uuidMap.has(object.sphere1Mesh)) {
+          object.sphere1Mesh = uuidMap.get(object.sphere1Mesh);
         }
-        if (sphere2MeshUUID) {
-          object.sphere2Mesh = uuidMap.get(sphere2MeshUUID);
+        if (object.sphere2Mesh && uuidMap.has(object.sphere2Mesh)) {
+          object.sphere2Mesh = uuidMap.get(object.sphere2Mesh);
           console.log(object);
           console.log("received sphere2Mesh:" + object.sphere2Mesh);
+        } else {
+          if (object instanceof THREE.CylinderGeometry) {
+            console.log("NO SPHERE2MESH:");
+            console.log(object);
+          }
         }
-        if (parentHullUUID) {
-          object.parentHull = uuidMap.get(parentHullUUID);
+        if (object.parentHull && uuidMap.has(object.parentHull)) {
+          object.parentHull = uuidMap.get(object.parentHull);
         }
-        if (belongingHullUUID) {
-          object.belongingHull = uuidMap.get(belongingHullUUID);
+        if (object.belongingHull && uuidMap.has(object.belongingHull)) {
+          object.belongingHull = uuidMap.get(object.belongingHull);
         }
-        if (tubeUUID) {
-          object.tube = uuidMap.get(tubeUUID);
+        if (object.tube && uuidMap.has(object.tube)) {
+          object.tube = uuidMap.get(object.tube);
         }
       }
-
-      /*
-        function addObjectsFromGroupToScene(group, scene) {
-          console.log("Clone ");
-          console.log(group.children);
-          let children = [...group.children];
-          for (let i = 0; i < children.length; i++) {
-            let object = children[i];
-            console.log("Cloning");
-            console.info(object);
-            let clonedObject = object.clone();
-            if (object instanceof THREE.SphereGeometry) {
-            } else if (object instanceof THREE.CylinderGeometry) {
-            }
-            group.updateMatrixWorld();
-            matrixWorld(clonedObject);
-            scene.add(clonedObject);
-            group.remove(object);
-          }
-        }*/
 
       function matrixWorld(mesh) {
         let position = new THREE.Vector3();
@@ -1529,6 +1554,11 @@
             }
             return;
           }*/
+          /*console.log("****************");
+          for (var y = 0; y < tubes.length; y++) {
+            console.log(tubes[y]);
+          }
+          console.log("****************");*/
 
           myDirection = new THREE.Vector3()
             .subVectors(tube.sphere2Mesh.position, tube.sphere1Mesh.position)
