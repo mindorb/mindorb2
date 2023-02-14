@@ -324,6 +324,7 @@
         }
         let description = null;
         if (object.description) {
+          console.log("OBJECT HAS DESCRIPTION:" + object.description);
           description = object.description;
         }
         let index = null;
@@ -369,6 +370,7 @@
 
         if (description != null) {
           clonedObject2.description = description;
+          console.log("Assigning " + description);
         }
         if (curve != null) {
           clonedObject2.curve = curve;
@@ -1329,6 +1331,7 @@
         // Add the text orientation object to the scene
         scene.add(textOrientation);
 
+        tube.description = description;
         tube.index = tubes.length;
         tube.curve = curve;
         tubes.push(tube);
