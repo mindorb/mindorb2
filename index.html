@@ -241,7 +241,8 @@
 
           addObjectsFromGroupToScene(group, scene);
 
-          for (let [oldUUID, newObject] of uuidMapGroup) {
+          let uuidMapGroupCopy = [...uuidMapGroup];
+          for (let [oldUUID, newObject] of uuidMapGroupCopy) {
             let clonedObject = scene.getObjectByProperty(
               "uuid",
               newObject.uuid
@@ -254,6 +255,8 @@
             if (clonedObject.geometry.type == "CylinderGeometry") {
               addTube(clonedObject);
             }
+            uuidMapGroup.delete(oldUUID);
+            console.log("LEN:" + uuidMapGroup.size);
           }
         }
       }
