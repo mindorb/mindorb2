@@ -124,14 +124,11 @@
       let increasing = true;
 
       function copySphere() {
-        console.log("COMPARISON");
         console.log(updatingTextObject);
         copySpheres = updatingTextObject.clone();
-        copySpheres.description = updatingTextObject.description;
+        copySpheres.description = updatingTextObject.description; // Preserver the original properties
         copySpheres.sphere1Mesh = updatingTextObject.sphere1Mesh;
         copySpheres.sphere2Mesh = updatingTextObject.sphere2Mesh;
-
-        console.log(copySpheres);
       }
 
       let uuidMap = new Map();
@@ -140,7 +137,6 @@
         if (!copySpheres) {
           alert("Please copy something first");
         } else {
-          console.log(updatingTextObject);
           if (!updatingTextObject.sphere2Mesh.belongingHull.spheres)
             updatingTextObject.sphere2Mesh.belongingHull.spheres = [];
           updatingTextObject.sphere2Mesh.belongingHull.spheres.push(
@@ -176,7 +172,10 @@
 
           tube.sphere2Mesh = updatingTextObject.sphere2Mesh;
           tube.sphere1Mesh = updatingTextObject.sphere1Mesh;
-          tube.description = copySphere.description;
+          console.log("COPYSPHERES:");
+          console.log(copySpheres);
+          tube.description = copySpheres.description;
+          highlight(copySpheres);
           console.error("TUBE.DESCRIPTION:" + copySpheres.description);
           let start = updatingTextObject.sphere1Mesh.position;
           let end = updatingTextObject.sphere2Mesh.position;
@@ -184,11 +183,9 @@
 
           tube.curve = curve;
 
-          console.log("MYTUBE");
           /*highlight(tube.sphere1Mesh);
           highlight2(tube.sphere2Mesh);
           highlight3(tube);*/
-          console.log(tube);
 
           /** Find the correct angle to rotate the group **/
 
@@ -220,8 +217,6 @@
           group.scale.z = relativeValue;
 
           let clonedSpheres = copySpheres;
-          console.log("SPHERE2MESH");
-          console.log(clonedSpheres.sphere2Mesh);
           let clonedSphere2Mesh = clonedSpheres.sphere2Mesh.clone();
           clonedSphere2Mesh.belongingHull =
             clonedSpheres.sphere2Mesh.belongingHull;
@@ -259,15 +254,12 @@
 
       function addTube(clonedObject) {
         tubes.push(clonedObject);
-        console.log("PUSHING TUBE");
-        console.log(clonedObject);
         changedTexts.push(true);
         allowRun.push(true);
         descriptions.push(clonedObject.description);
-        console.log("CLONED DESCRIPTION:" + clonedObject.description);
-        console.log("CLONED CURVE:" + clonedObject.curve);
+        console.log("CLONED DESCRIPTION:");
+        console.log(clonedObject.description);
         curves.push(clonedObject.curve);
-        console.log("CLONED " + clonedObject.curve);
         texts.push([]);
         previousCheckIfTubeIsOnRightOrLeft.push(null);
       }
@@ -314,7 +306,6 @@
         let clonedObject = object.clone();
 
         if (clonedObject.geometry.type == "CylinderGeometry") {
-          console.log("CLONING CLONEDOBJECT");
           console.log(clonedObject);
         }
 
@@ -324,7 +315,8 @@
         }
         let description = null;
         if (object.description) {
-          console.log("OBJECT HAS DESCRIPTION:" + object.description);
+          console.log("OBJECT HAS DESCRIPTION:");
+          console.log(object.description);
           description = object.description;
         }
         let index = null;
@@ -367,10 +359,12 @@
         scene.add(clonedObject2);
 
         scene.remove(clonedObject);
-
+        console.log("description:::::");
+        console.log(description);
         if (description != null) {
           clonedObject2.description = description;
-          console.log("Assigning " + description);
+          console.log("Assigning ");
+          console.log(description);
         }
         if (curve != null) {
           clonedObject2.curve = curve;
@@ -1331,10 +1325,16 @@
         // Add the text orientation object to the scene
         scene.add(textOrientation);
 
+        console.log("SETTING DESCRIPTION TO ");
+        console.log(description);
         tube.description = description;
         tube.index = tubes.length;
         tube.curve = curve;
         tubes.push(tube);
+        for (var i = 0; i < tubes.length; i++) {
+          console.log("*********************");
+          console.log(tubes[i]);
+        }
 
         //tubeGeometries.push(tubeGeometry);
         return tube;
@@ -1369,6 +1369,8 @@
                 ) {
                   console.error(object);
                   if (object.tube) {
+                    console.log("OBJECT.TUBE:");
+                    console.error(object.tube);
                     updatingTextObject = object.tube;
                     document.getElementById("updateDIV").style.display =
                       "inline";
