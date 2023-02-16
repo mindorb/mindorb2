@@ -266,6 +266,11 @@
         changedTexts.push(true);
         allowRun.push(true);
         descriptions.push(clonedObject.description);
+        console.log(clonedObject);
+        for (var i = 0; i < scene.children.length; i++) {
+          console.log(scene.children[i].uuid);
+          console.log(scene.children[i]);
+        }
         console.log("CLONED DESCRIPTION:");
         console.log(clonedObject.description);
         console.log("CLONED CURVE:");
@@ -491,6 +496,13 @@
 
           for (var i = 0; i < sphere2Mesh.belongingHull.spheres.length; i++) {
             let clonedTube = sphere2Mesh.belongingHull.spheres[i].tube.clone();
+            clonedTube.description =
+              sphere2Mesh.belongingHull.spheres[i].tube.description;
+            clonedTube.curve = sphere2Mesh.belongingHull.spheres[i].tube.curve;
+            clonedTube.sphere1Mesh =
+              sphere2Mesh.belongingHull.spheres[i].tube.sphere1Mesh;
+            clonedTube.sphere2Mesh =
+              sphere2Mesh.belongingHull.spheres[i].tube.sphere2Mesh;
             group.add(clonedTube);
             group.updateMatrixWorld();
             matrixWorld(clonedTube);
